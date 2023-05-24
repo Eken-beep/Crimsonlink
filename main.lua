@@ -7,7 +7,7 @@ function love.load()
              , hp       = 100
              , inventory = {}
              , hand = nil
-             , character = love.graphics.rectangle("line",
+             , character = love.graphics.rectangle("line", 10, 10 ,10 ,10)
              }
 
     Cursor = {x = love.mouse.getX(), y = love.mouse.getY(), image = love.graphics.newImage("assets/crosshair.png")}
