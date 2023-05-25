@@ -12,6 +12,7 @@ function love.load()
 
     Cursor = { x = love.mouse.getX()
              , y = love.mouse.getY()
+             , crosshair = {x = 10, y = 10}
              , tail = {image = love.graphics.newImage("assets/cursortail.png"), angle = 0}
              }
 
@@ -20,7 +21,7 @@ end
 function love.update(dt)
     Cursor.x = love.mouse.getX()
     Cursor.y = love.mouse.getY()
-    MouseTail()
+    CalcCrosshair()
 end
 
 function love.draw()
@@ -49,8 +50,12 @@ function Move(distance, alpha)
     Player.position.y = Player.position.y + y
 end
 
-function MouseTail()
+function CalcCrosshair()
     local px, py = Player.position.x , Player.position.y
     local dx, dy = Cursor.x - px, Cursor.y - py
     Cursor.tail.angle = math.atan2(dy, dx)
+    local cx = 250*math.cos(Cursor.tail.angle)
+    local cy = 250*math.sin(Cursor.tail.angle)
+    Cursor.crosshair.x = cx + Cursor.crosshair.x
+    Cursor.crosshair.y = cy + Cursor.crosshair.y
 end
