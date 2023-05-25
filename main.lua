@@ -28,13 +28,19 @@ end
 
 function love.keypressed(key)
     if key == "right" then
-        Player.position.x = Player.position.x + 10
-    elseif key == "left" then
-        Direction = "left"
-        Player.position.x = Player.position.x - 10
-    elseif key == "up" then
-        Player.position.y = Player.position.y - 10
+        Move(10, 0)
     elseif key == "down" then
-        Player.position.y = Player.position.y + 10
+        Move(10, 90)
+    elseif key == "left" then
+        Move(10, 180)
+    elseif key == "up" then
+        Move(10, 270)
     end
+end
+
+function Move(distance, alpha)
+    local x = distance*math.cos(alpha)
+    local y = distance*math.sin(alpha)
+    Player.position.x = Player.position.x + x
+    Player.position.y = Player.position.y + y
 end
