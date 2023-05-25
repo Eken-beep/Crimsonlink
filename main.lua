@@ -43,9 +43,9 @@ function love.keypressed(key)
     end
 end
 
-function Move(distance, alpha)
-    local x = distance*math.cos(alpha)
-    local y = distance*math.sin(alpha)
+function Move(distance, angle)
+    local x = distance*math.cos(angle)
+    local y = distance*math.sin(angle)
     Player.position.x = Player.position.x + x
     Player.position.y = Player.position.y + y
 end
