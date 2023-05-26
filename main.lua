@@ -31,6 +31,6 @@ end
 
 function love.draw()
     love.graphics.setBackgroundColor(1,1,1)
-    love.graphics.draw(Cursor.tail.image, Player.position.x, Player.position.y, Cursor.tail.angle)
+    love.graphics.draw(Cursor.tail.image, Player.position.x+12.5, Player.position.y+12.5, Cursor.tail.angle, 1, 1, 6, 6)
     love.graphics.draw(Player.character, Player.position.x, Player.position.y)
 end
