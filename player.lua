@@ -26,3 +26,16 @@ function CalcCrosshair()
     Cursor.crosshair.x = cx + Cursor.crosshair.x
     Cursor.crosshair.y = cy + Cursor.crosshair.y
 end
+
+function Attack()
+    local attackNeg = Cursor.tail.angle - math.pi/4
+    local attackPos = Cursor.tail.angle + math.pi/4
+    for i=1, #Enemies do
+        local px, py = Player.position.x , Player.position.y
+        local dx, dy = Enemies[i].x - px, Enemies[i].y - py
+        local enemyAngle = math.atan2(dy, dx)
+        if Distance(Player.position.x, Player.position.y, Enemies[i].x, Enemies[i].y) < Player.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
+            Enemies[i].hp = Enemies[i].hp - Player.hand.damage
+        end
+    end
+end
