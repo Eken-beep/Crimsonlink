@@ -36,9 +36,10 @@ function Attack()
         local enemyAngle = math.atan2(dy, dx)
         if Distance(Player.position.x, Player.position.y, Enemies[i].x, Enemies[i].y) < Player.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
             Enemies[i].hp = Enemies[i].hp - Player.hand.damage
-            Player.attackCooldown = true
         end
     end
+    Player.stats.xp = Player.stats.xp + 10
+    Player.attackCooldown = true
 end
 
 function AttackTimeout(dt)
@@ -60,4 +61,19 @@ function DrawHealth()
 
 	love.graphics.setColor(1,1,1)
 	love.graphics.rectangle('line', sx,1.5*sy, Player.stats.maxHp, sy/2)
+end
+
+function DrawXp()
+    local lx,ly = W*0.7,20
+    local x, y  = W/2-lx/2, 60
+    local xpPercentage = Player.stats.xp/CurrentXpMax
+
+    love.graphics.setColor(0,0,0)
+    love.graphics.rectangle("line", x, y, lx, ly)
+    love.graphics.setColor(0,0,1)
+    love.graphics.rectangle("fill", x, y, xpPercentage*lx, ly)
+    love.graphics.setColor(0,0,0)
+    love.graphics.print(Player.stats.xp .. ' / ' .. CurrentXpMax, (W/2)-20, 64)
+    love.graphics.print('Level ' .. Player.stats.level, W-50, 20)
+    love.graphics.setColor(1,1,1)
 end

@@ -16,6 +16,8 @@ Player = { position = {x = 0, y = 0}
          , attackTime = 0
          }
 
+CurrentXpMax = 100*math.pow(1.1, Player.stats.level)
+
 Cursor = { x = love.mouse.getX()
          , y = love.mouse.getY()
          , crosshair = {x = 10, y = 10}
@@ -32,6 +34,7 @@ function love.load()
     love.mouse.setVisible(true)
     Images = { attackBlock = love.graphics.newImage("assets/stop.png")
              }
+    Font = love.graphics.newFont(24)
 end
 
 function love.update(dt)
@@ -41,6 +44,11 @@ function love.update(dt)
     Move()
     EnemyDeath()
     if Player.attackCooldown then AttackTimeout(dt) end
+    if Player.stats.xp >= CurrentXpMax then
+        Player.stats.xp = 0
+        Player.stats.level = Player.stats.level + 1
+        CurrentXpMax = 100*math.pow(1.1, Player.stats.level)
+    end
 end
 
 function love.draw()
@@ -48,30 +56,11 @@ function love.draw()
     love.graphics.draw(Cursor.tail.image, Player.position.x+12.5, Player.position.y+12.5, Cursor.tail.angle, 1, 1, 6, 6)
     love.graphics.draw(Player.character, Player.position.x, Player.position.y)
     DrawEnemies()
-<<<<<<< HEAD
-
-    local sx,sy = 32,32
-
-	local c = Player.stats.hp/Player.stats.maxHp
-	local color = {2-2*c,2*c,0}
-	love.graphics.setColor(color)
-	love.graphics.print('Health: ' .. math.floor(Player.stats.hp),sx,sy)
-	love.graphics.rectangle('fill', sx,1.5*sy, Player.stats.hp, sy/2)
-
-	love.graphics.setColor(1,1,1)
-	love.graphics.rectangle('line', sx,1.5*sy, Player.stats.maxHp, sy/2)
-
-    local lx,ly = 60,60
-
-    love.graphics.setColor(0,0,1)
-    love.graphics.rectangle("fill", lx,ly, Player.stats.xp, ly,ly)
-    love.graphics.setColor(1,1,1)
-=======
+    DrawXp()
     DrawHealth()
     if Player.attackCooldown then
         love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
     end
->>>>>>> c741cf4 (added proper attack cooldown)
 end
 
 function love.mousepressed(x, y, button)
