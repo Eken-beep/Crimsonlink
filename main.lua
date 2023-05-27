@@ -2,33 +2,30 @@ require("player")
 require("items")
 require("enemy")
 
+Player = { position = {x = 0, y = 0}
+         , stats = { hp = 100
+                   , maxHp = 100
+                   , movementspeed = 1
+                   }
+         , inventory = {}
+         , hand = Weapons.hand
+         , character = love.graphics.newImage("assets/character.png")
+         }
+
+Cursor = { x = love.mouse.getX()
+         , y = love.mouse.getY()
+         , crosshair = {x = 10, y = 10}
+         , attackAnimation = false
+         , tail = {image = love.graphics.newImage("assets/cursortail.png"), angle = 0}
+         }
+
+Enemies = {{image = love.graphics.newImage("assets/enemy.png"), x=500, y=500, w = 50, h = 50, hp = 100}}
+
 function love.load()
     DTotal = 0
     love.window.setMode(1920, 1080, {fullscreen=true, resizable=true, vsync=false, minwidth=400, minheight=300})
     W, H = love.graphics.getDimensions()
     love.mouse.setVisible(true)
-    Player = { position = {x = 0, y = 0}
-             , stats = { hp = 100
-                       , movementspeed = 1
-                       }
-             , inventory = {}
-             , hand = Weapons.hand
-             , character = love.graphics.newImage("assets/character.png")
-             }
-
-    Cursor = { x = love.mouse.getX()
-             , y = love.mouse.getY()
-             , crosshair = {x = 10, y = 10}
-             , attackAnimation = false
-             , tail = {image = love.graphics.newImage("assets/cursortail.png"), angle = 0}
-             }
-
-    Enemies = {{image = love.graphics.newImage("assets/enemy.png"), x=500, y=500, w = 50, h = 50, hp = 100}}
-
-    global = {}
-	global.player = {}
-	global.player.max_health = 100
-	global.player.health = 100
 end
 
 function love.update(dt)
@@ -37,11 +34,6 @@ function love.update(dt)
     CalcCrosshair()
     Move()
     EnemyDeath()
-
-    local damage = 10*dt*(-math.random()*1)
-	local new_health = math.min(global.player.health+damage, global.player.max_health)
-	new_health = (new_health > 0) and new_health or global.player.max_health 
-	global.player.health = new_health
 end
 
 function love.draw()
@@ -51,15 +43,15 @@ function love.draw()
     DrawEnemies()
 
     local sx,sy = 32,32
-	
-	local c = global.player.health/global.player.max_health
-	local color = {2-2*c,2*c,0} 
+
+	local c = Player.stats.hp/Player.stats.maxHp
+	local color = {2-2*c,2*c,0}
 	love.graphics.setColor(color)
-	love.graphics.print('Health: ' .. math.floor(global.player.health),sx,sy)
-	love.graphics.rectangle('fill',sx,1.5*sy,global.player.health,sy/2)
-	
+	love.graphics.print('Health: ' .. math.floor(Player.stats.hp),sx,sy)
+	love.graphics.rectangle('fill', sx,1.5*sy, Player.stats.hp, sy/2)
+
 	love.graphics.setColor(1,1,1)
-	love.graphics.rectangle('line',sx,1.5*sy,global.player.max_health,sy/2)
+	love.graphics.rectangle('line', sx,1.5*sy, Player.stats.maxHp, sy/2)
 end
 
 function love.mousepressed(x, y, button)
