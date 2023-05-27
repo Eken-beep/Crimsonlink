@@ -47,7 +47,7 @@ function love.update(dt)
     if Player.stats.xp >= CurrentXpMax then
         Player.stats.xp = 0
         Player.stats.level = Player.stats.level + 1
-        CurrentXpMax = 100*math.pow(1.1, Player.stats.level)
+        CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
     end
 end
 
