@@ -12,6 +12,8 @@ Player = { position = {x = 0, y = 0}
          , inventory = {}
          , hand = Weapons.hand
          , character = love.graphics.newImage("assets/character.png")
+         , attackCooldown = false
+         , attackTime = 0
          }
 
 Cursor = { x = love.mouse.getX()
@@ -28,6 +30,8 @@ function love.load()
     love.window.setMode(1920, 1080, {fullscreen=true, resizable=true, vsync=false, minwidth=400, minheight=300})
     W, H = love.graphics.getDimensions()
     love.mouse.setVisible(true)
+    Images = { attackBlock = love.graphics.newImage("assets/stop.png")
+             }
 end
 
 function love.update(dt)
@@ -36,6 +40,7 @@ function love.update(dt)
     CalcCrosshair()
     Move()
     EnemyDeath()
+    if Player.attackCooldown then AttackTimeout(dt) end
 end
 
 function love.draw()
@@ -43,6 +48,7 @@ function love.draw()
     love.graphics.draw(Cursor.tail.image, Player.position.x+12.5, Player.position.y+12.5, Cursor.tail.angle, 1, 1, 6, 6)
     love.graphics.draw(Player.character, Player.position.x, Player.position.y)
     DrawEnemies()
+<<<<<<< HEAD
 
     local sx,sy = 32,32
 
@@ -60,10 +66,16 @@ function love.draw()
     love.graphics.setColor(0,0,1)
     love.graphics.rectangle("fill", lx,ly, Player.stats.xp, ly,ly)
     love.graphics.setColor(1,1,1)
+=======
+    DrawHealth()
+    if Player.attackCooldown then
+        love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
+    end
+>>>>>>> c741cf4 (added proper attack cooldown)
 end
 
 function love.mousepressed(x, y, button)
-    if button == 1 then
+    if button == 1 and not Player.attackCooldown then
         Attack()
     end
 end
