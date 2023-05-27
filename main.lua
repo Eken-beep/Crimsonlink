@@ -6,6 +6,8 @@ Player = { position = {x = 0, y = 0}
          , stats = { hp = 100
                    , maxHp = 100
                    , movementspeed = 1
+                   , xp = 0
+                   , level = 1
                    }
          , inventory = {}
          , hand = Weapons.hand
@@ -52,6 +54,12 @@ function love.draw()
 
 	love.graphics.setColor(1,1,1)
 	love.graphics.rectangle('line', sx,1.5*sy, Player.stats.maxHp, sy/2)
+
+    local lx,ly = 60,60
+
+    love.graphics.setColor(0,0,1)
+    love.graphics.rectangle("fill", lx,ly, Player.stats.xp, ly,ly)
+    love.graphics.setColor(1,1,1)
 end
 
 function love.mousepressed(x, y, button)
