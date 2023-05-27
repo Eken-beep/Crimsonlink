@@ -25,6 +25,10 @@ function love.load()
 
     Enemies = {{image = love.graphics.newImage("assets/enemy.png"), x=500, y=500, w = 50, h = 50, hp = 100}}
 
+    global = {}
+	global.player = {}
+	global.player.max_health = 100
+	global.player.health = 100
 end
 
 function love.update(dt)
@@ -33,6 +37,11 @@ function love.update(dt)
     CalcCrosshair()
     Move()
     EnemyDeath()
+
+    local damage = 10*dt*(-math.random()*1)
+	local new_health = math.min(global.player.health+damage, global.player.max_health)
+	new_health = (new_health > 0) and new_health or global.player.max_health 
+	global.player.health = new_health
 end
 
 function love.draw()
@@ -40,6 +49,17 @@ function love.draw()
     love.graphics.draw(Cursor.tail.image, Player.position.x+12.5, Player.position.y+12.5, Cursor.tail.angle, 1, 1, 6, 6)
     love.graphics.draw(Player.character, Player.position.x, Player.position.y)
     DrawEnemies()
+
+    local sx,sy = 32,32
+	
+	local c = global.player.health/global.player.max_health
+	local color = {2-2*c,2*c,0} 
+	love.graphics.setColor(color)
+	love.graphics.print('Health: ' .. math.floor(global.player.health),sx,sy)
+	love.graphics.rectangle('fill',sx,1.5*sy,global.player.health,sy/2)
+	
+	love.graphics.setColor(1,1,1)
+	love.graphics.rectangle('line',sx,1.5*sy,global.player.max_health,sy/2)
 end
 
 function love.mousepressed(x, y, button)
