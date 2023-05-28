@@ -1,6 +1,7 @@
 require("player")
 require("items")
 require("enemy")
+require("drawing")
 
 Player = { position = {x = 0, y = 0}
          , stats = { hp = 100
@@ -14,6 +15,8 @@ Player = { position = {x = 0, y = 0}
          , character = love.graphics.newImage("assets/character.png")
          , attackCooldown = false
          , attackTime = 0
+         , dashCooldown = 0
+         , controller = true
          }
 
 CurrentXpMax = 100*math.pow(1.1, Player.stats.level)
@@ -32,17 +35,26 @@ function love.load()
     love.window.setMode(1920, 1080, {fullscreen=true, resizable=true, vsync=false, minwidth=400, minheight=300})
     W, H = love.graphics.getDimensions()
     love.mouse.setVisible(true)
+    local joysticks = love.joystick.getJoysticks()
+    Joystick = joysticks[1]
     Images = { attackBlock = love.graphics.newImage("assets/stop.png")
              }
     Font = love.graphics.newFont(24)
 end
 
 function love.update(dt)
-    Cursor.x = love.mouse.getX()
-    Cursor.y = love.mouse.getY()
-    CalcCrosshair()
-    Move()
+    if Player.controller then
+        JoystickMovement()
+        CalcCrosshairJoystick()
+        JoystickAttack()
+    else
+        Cursor.x = love.mouse.getX()
+        Cursor.y = love.mouse.getY()
+        CalcCrosshair()
+        KeyboardMove()
+    end
     EnemyDeath()
+    Dash(dt)
     if Player.attackCooldown then AttackTimeout(dt) end
     if Player.stats.xp >= CurrentXpMax then
         Player.stats.xp = 0
@@ -74,10 +86,10 @@ function Distance(ax, ay, bx, by)
 end
 
 function DoCollide(x1,y1,w1,h1, x2,y2,w2,h2)
-  return x1 < x2+w2 and
-         x2 < x1+w1 and
-         y1 < y2+h2 and
-         y2 < y1+h1
+    return x1 < x2+w2 and
+           x2 < x1+w1 and
+           y1 < y2+h2 and
+           y2 < y1+h1
 end
 
 function AngleOverlap(a1, x, a2)

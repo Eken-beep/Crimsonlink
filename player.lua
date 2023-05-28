@@ -1,13 +1,20 @@
-function Move()
-    if love.keyboard.isDown("d") or love.keyboard.isDown("e") then
+function KeyboardMove()
+    if love.keyboard.isDown("d")  then
         Movement(Player.stats.movementspeed,0*math.pi)
-    elseif love.keyboard.isDown("s") or love.keyboard.isDown("o") then
+    elseif love.keyboard.isDown("s")  then
         Movement(Player.stats.movementspeed, 0.5*math.pi)
     elseif love.keyboard.isDown("a") then
         Movement(Player.stats.movementspeed,1*math.pi)
-    elseif love.keyboard.isDown("w") or love.keyboard.isDown(",") then
+    elseif love.keyboard.isDown("w") then
         Movement(Player.stats.movementspeed, 1.5*math.pi)
     end
+end
+
+function JoystickMovement()
+    local x = Deadzone(Joystick:getGamepadAxis("leftx"))
+    local y = Deadzone(Joystick:getGamepadAxis("lefty"))
+    Player.position.x = Player.position.x + x*Player.stats.movementspeed
+    Player.position.y = Player.position.y + y*Player.stats.movementspeed
 end
 
 function Movement(distance, angle)
@@ -25,6 +32,37 @@ function CalcCrosshair()
     local cy = 250*math.sin(Cursor.tail.angle)
     Cursor.crosshair.x = cx + Cursor.crosshair.x
     Cursor.crosshair.y = cy + Cursor.crosshair.y
+end
+
+function CalcCrosshairJoystick()
+    local x = Deadzone(Joystick:getGamepadAxis("rightx"))
+    local y = Deadzone(Joystick:getGamepadAxis("righty"))
+    Cursor.tail.angle = math.atan2(y,x)
+    local cx = 250*math.cos(Cursor.tail.angle)
+    local cy = 250*math.sin(Cursor.tail.angle)
+    Cursor.crosshair.x = cx + Cursor.crosshair.x
+    Cursor.crosshair.y = cy + Cursor.crosshair.y
+end
+
+function JoystickAttack()
+    local trigger = Joystick:getGamepadAxis("triggerright")
+    if trigger > 0 and not Player.attackCooldown then Attack() end
+end
+
+function Dash(dt)
+    Player.dashCooldown = Player.dashCooldown + dt
+    if Player.dashCooldown > 4 then
+        local _, buttonIndex, _ = Joystick:getGamepadMapping("leftshoulder")
+        if love.keyboard.isDown("space") or Joystick:isDown(buttonIndex) then
+            Movement(700, Cursor.tail.angle)
+            Player.dashCooldown = 0
+        end
+    end
+end
+
+function Deadzone(a)
+    if math.abs(a) < 0.1 then return 0
+    else return a end
 end
 
 function Attack()
@@ -48,32 +86,4 @@ function AttackTimeout(dt)
         Player.attackCooldown = false
         Player.attackTime = 0
     end
-end
-
-function DrawHealth()
-    local sx,sy = 32,32
-
-	local c = Player.stats.hp/Player.stats.maxHp
-	local color = {2-2*c,2*c,0}
-	love.graphics.setColor(color)
-	love.graphics.print('Health: ' .. math.floor(Player.stats.hp),sx,sy)
-	love.graphics.rectangle('fill', sx,1.5*sy, Player.stats.hp, sy/2)
-
-	love.graphics.setColor(1,1,1)
-	love.graphics.rectangle('line', sx,1.5*sy, Player.stats.maxHp, sy/2)
-end
-
-function DrawXp()
-    local lx,ly = W*0.7,20
-    local x, y  = W/2-lx/2, 60
-    local xpPercentage = Player.stats.xp/CurrentXpMax
-
-    love.graphics.setColor(0,0,0)
-    love.graphics.rectangle("line", x, y, lx, ly)
-    love.graphics.setColor(0,0,1)
-    love.graphics.rectangle("fill", x, y, xpPercentage*lx, ly)
-    love.graphics.setColor(0,0,0)
-    love.graphics.print(Player.stats.xp .. ' / ' .. CurrentXpMax, (W/2)-20, 64)
-    love.graphics.print('Level ' .. Player.stats.level, W-50, 20)
-    love.graphics.setColor(1,1,1)
 end
