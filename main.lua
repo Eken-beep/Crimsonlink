@@ -1,61 +1,24 @@
-require("player")
 require("items")
+require("load")
+require("player")
 require("enemy")
 require("drawing")
 
-Player = { position = {x = 0, y = 0}
-         , stats = { hp = 100
-                   , maxHp = 100
-                   , movementspeed = 1
-                   , xp = 0
-                   , level = 1
-                   }
-         , inventory = {}
-         , hand = Weapons.hand
-         , character = love.graphics.newImage("assets/character.png")
-         , attackCooldown = false
-         , attackTime = 0
-         , dashCooldown = 0
-         , controller = true
-         }
-
-CurrentXpMax = 100*math.pow(1.1, Player.stats.level)
-
-Cursor = { x = love.mouse.getX()
-         , y = love.mouse.getY()
-         , crosshair = {x = 10, y = 10}
-         , attackAnimation = false
-         , tail = {image = love.graphics.newImage("assets/cursortail.png"), angle = 0}
-         }
-
-Enemies = {{image = love.graphics.newImage("assets/enemy.png"), x=500, y=500, w = 50, h = 50, hp = 100}}
-
-function love.load()
-    DTotal = 0
-    love.window.setMode(1920, 1080, {fullscreen=true, resizable=true, vsync=false, minwidth=400, minheight=300})
-    W, H = love.graphics.getDimensions()
-    love.mouse.setVisible(true)
-    local joysticks = love.joystick.getJoysticks()
-    Joystick = joysticks[1]
-    Images = { attackBlock = love.graphics.newImage("assets/stop.png")
-             }
-    Font = love.graphics.newFont(24)
-end
 
 function love.update(dt)
     if Player.controller then
-        JoystickMovement()
-        CalcCrosshairJoystick()
-        JoystickAttack()
+        Player:joystickMovement()
+        Player:calcCrosshairJoystick()
+        Player:joystickAttack()
     else
         Cursor.x = love.mouse.getX()
         Cursor.y = love.mouse.getY()
-        CalcCrosshair()
-        KeyboardMove()
+        Cursor:calcCrosshair()
+        Player:keyboardMove()
     end
-    EnemyDeath()
-    Dash(dt)
-    if Player.attackCooldown then AttackTimeout(dt) end
+    Enemies:onDeath()
+    Player:dash(dt)
+    if Player.attackCooldown then Player:attackTimeout(dt) end
     if Player.stats.xp >= CurrentXpMax then
         Player.stats.xp = 0
         Player.stats.level = Player.stats.level + 1
@@ -67,7 +30,7 @@ function love.draw()
     love.graphics.setBackgroundColor(1,1,1)
     love.graphics.draw(Cursor.tail.image, Player.position.x+12.5, Player.position.y+12.5, Cursor.tail.angle, 1, 1, 6, 6)
     love.graphics.draw(Player.character, Player.position.x, Player.position.y)
-    DrawEnemies()
+    Enemies:draw()
     DrawXp()
     DrawHealth()
     if Player.attackCooldown then
@@ -77,7 +40,7 @@ end
 
 function love.mousepressed(x, y, button)
     if button == 1 and not Player.attackCooldown then
-        Attack()
+        Player:attack()
     end
 end
 

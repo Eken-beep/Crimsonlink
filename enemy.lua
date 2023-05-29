@@ -1,16 +1,16 @@
-function DrawEnemies()
-    for i=1, #Enemies do
-        if Enemies[i] ~= nil then
-            local e = Enemies[i]
+function Enemies:draw()
+    for i=1, #self do
+        if self[i] ~= nil then
+            local e = self[i]
             love.graphics.draw(e.image, e.x, e.y)
         end
     end
 end
 
-function EnemyDeath()
-    for i=1, #Enemies do
-        if Enemies[i].hp <= 0 then
-            table.remove(Enemies, i)
+function Enemies:onDeath()
+    for i=1, #self do
+        if self[i].hp <= 0 then
+            table.remove(self, i)
         end
     end
 end
