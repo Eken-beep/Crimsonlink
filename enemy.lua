@@ -9,8 +9,10 @@ end
 
 function Enemies:onDeath()
     for i=1, #self do
-        if self[i].hp <= 0 then
-            table.remove(self, i)
+        if self[i] ~= nil then
+            if self[i].hp <= 0 then
+                table.remove(self, i)
+            end
         end
     end
 end

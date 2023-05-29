@@ -52,7 +52,7 @@ end
 function Player:dash(dt)
     self.dashCooldown = self.dashCooldown + dt
     if self.dashCooldown > 4 then
-        if Player.controller then 
+        if self.controller then
             local _, buttonIndex, _ = Joystick:getGamepadMapping("leftshoulder")
             if Joystick:isDown(buttonIndex) then
                 Player:movement(700, Cursor.tail.angle)
@@ -81,6 +81,8 @@ function Player:attack()
         local enemyAngle = math.atan2(dy, dx)
         if Distance(self.position.x, self.position.y, Enemies[i].x, Enemies[i].y) < self.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
             Enemies[i].hp = Enemies[i].hp - self.hand.damage
+            love.audio.play(Audio.hitmark)
+            DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage)
         end
     end
     self.stats.xp = self.stats.xp + 10
