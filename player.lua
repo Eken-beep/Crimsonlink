@@ -80,9 +80,15 @@ function Player:attack()
         local dx, dy = Enemies[i].x - px, Enemies[i].y - py
         local enemyAngle = math.atan2(dy, dx)
         if Distance(self.position.x, self.position.y, Enemies[i].x, Enemies[i].y) < self.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
-            Enemies[i].hp = Enemies[i].hp - self.hand.damage
+            local crit = math.random(1,100)
+            if crit <= self.hand.crit then
+                Enemies[i].hp = Enemies[i].hp - self.hand.damage*3
+                DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage*3)
+            else
+                Enemies[i].hp = Enemies[i].hp - self.hand.damage
+                DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage)
+            end
             love.audio.play(Audio.hitmark)
-            DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage)
         end
     end
     self.stats.xp = self.stats.xp + 10

@@ -29,14 +29,16 @@ end
 function DamageIndicators:add(x, y, damage)
     local rx = math.random(x-50,x+50)
     local ry = math.random(y-50,y+50)
-    table.insert(self, {rx,ry,0,damage})
+    table.insert(self, {rx,ry,0,damage,1})
 end
 
 function DamageIndicators:clean(dt)
     for i=1, #self do
         if self[i] ~= nil then
             self[i][3] = self[i][3] + dt
-            if self[i][3] >= 2 then
+            self[i][2] = self[i][2] - 0.1
+            self[i][5] = self[i][5] - dt
+            if self[i][3] >= 1 then
                 table.remove(self, i)
             end
         end
@@ -46,7 +48,7 @@ end
 function DamageIndicators:draw()
     for i=1, #self do
         if self[i] ~= nil then
-            love.graphics.setColor(1,0,0)
+            love.graphics.setColor(1,0,0,self[i][5])
             love.graphics.print('-'..self[i][4], self[i][1], self[i][2])
             love.graphics.setColor(1,1,1)
         end
