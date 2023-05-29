@@ -7,9 +7,10 @@ require("drawing")
 
 function love.update(dt)
     if State == "game" then
+        Player.x, Player.y = Player.body:getPosition()
         if Player.controller then
             Player:joystickMovement()
-            Player:calcCrosshairJoystick()
+            Cursor:calcCrosshairJoystick()
             Player:joystickAttack()
         else
             Cursor.x = love.mouse.getX()
@@ -26,14 +27,15 @@ function love.update(dt)
             Player.stats.level = Player.stats.level + 1
             CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
         end
+        World:update(dt)
     end
 end
 
 function love.draw()
     if State == "game" then
         love.graphics.setBackgroundColor(1,1,1)
-        love.graphics.draw(Cursor.tail.image, Player.position.x+12.5, Player.position.y+12.5, Cursor.tail.angle, 1, 1, 6, 6)
-        love.graphics.draw(Player.character, Player.position.x, Player.position.y)
+        love.graphics.draw(Cursor.tail.image, Player.x+25, Player.y+25, Cursor.tail.angle, 1, 1, 6, 6)
+        love.graphics.draw(Player.character, Player.x, Player.y)
         Enemies:draw()
         DrawXp()
         DrawHealth()

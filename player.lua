@@ -13,19 +13,17 @@ end
 function Player:joystickMovement()
     local x = Deadzone(Joystick:getGamepadAxis("leftx"))
     local y = Deadzone(Joystick:getGamepadAxis("lefty"))
-    self.position.x = self.position.x + x*self.stats.movementspeed
-    self.position.y = self.position.y + y*self.stats.movementspeed
+    self.body:setPosition(self.x+self.stats.movementspeed*x,self.y+self.stats.movementspeed*y)
 end
 
 function Player:movement(distance, angle)
     local x = distance*math.cos(angle)
     local y = distance*math.sin(angle)
-    self.position.x = self.position.x + x
-    self.position.y = self.position.y + y
+    self.body:setPosition(self.x+x,self.y+y)
 end
 
 function Cursor:calcCrosshair()
-    local px, py = Player.position.x , Player.position.y
+    local px, py = Player.x , Player.y
     local dx, dy = self.x - px, self.y - py
     self.tail.angle = math.atan2(dy, dx)
     local cx = 250*math.cos(self.tail.angle)
