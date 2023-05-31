@@ -26,6 +26,18 @@ function DrawXp()
     love.graphics.setColor(1,1,1)
 end
 
+function DrawDash()
+    local h,w = 32,100
+    local d = Player.dashData.dashMeter
+    local dMax = Player.dashData.maxDashMeter
+    local p = d/dMax
+    love.graphics.setColor(1,0,0)
+    love.graphics.rectangle("fill", 32, 180, p*w, h)
+    love.graphics.setColor(0,0,0)
+    love.graphics.rectangle("line", 32, 180, w, h)
+    love.graphics.setColor(1,1,1)
+end
+
 function DamageIndicators:add(x, y, damage)
     local rx = math.random(x-50,x+50)
     local ry = math.random(y-50,y+50)
@@ -36,7 +48,7 @@ function DamageIndicators:clean(dt)
     for i=1, #self do
         if self[i] ~= nil then
             self[i][3] = self[i][3] + dt
-            self[i][2] = self[i][2] - 0.1
+            self[i][2] = self[i][2] - 0.12
             self[i][5] = self[i][5] - dt
             if self[i][3] >= 1 then
                 table.remove(self, i)

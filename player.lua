@@ -19,7 +19,7 @@ end
 function Player:movement(distance, angle)
     local x = distance*math.cos(angle)
     local y = distance*math.sin(angle)
-    self.body:setPosition(self.x+x,self.y+y)
+    self.body:applyForce(x,y)
 end
 
 function Cursor:calcCrosshair()
@@ -44,24 +44,16 @@ end
 
 function Player:joystickAttack()
     local trigger = Joystick:getGamepadAxis("triggerright")
-    if trigger > 0 and not self.attackCooldown then Player:attack() end
+    if trigger > 0 and not self.attackCooldown then self:attack() end
 end
 
-function Player:dash(dt)
-    self.dashCooldown = self.dashCooldown + dt
-    if self.dashCooldown > 4 then
-        if self.controller then
-            local _, buttonIndex, _ = Joystick:getGamepadMapping("leftshoulder")
-            if Joystick:isDown(buttonIndex) then
-                Player:movement(700, Cursor.tail.angle)
-                self.dashCooldown = 0
-            end
-        else
-            if love.keyboard.isDown("space") then
-                Player:movement(700, Cursor.tail.angle)
-                self.dashCooldown = 0
-            end
-        end
+function Player:dash(power, dt)
+    self.dashData.dashMeter = math.min(self.dashData.dashMeter + dt/20, self.dashData.maxDashMeter)
+    local rx = power*math.cos(Cursor.tail.angle)
+    local ry = power*math.sin(Cursor.tail.angle)
+    if self.dashData.dashMeter > 0 and love.keyboard.isDown("space") then
+        self.body:setLinearVelocity(rx,ry)
+        self.dashData.dashMeter = self.dashData.dashMeter - dt
     end
 end
 
