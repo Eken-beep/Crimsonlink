@@ -1,3 +1,4 @@
+Joystick = love.joystick.getJoysticks()[1]
 function Player:keyboardMove()
     if love.keyboard.isDown("d")  then
         Player:movement(self.stats.movementspeed,0*math.pi)
@@ -10,16 +11,20 @@ function Player:keyboardMove()
     end
 end
 
-function Player:joystickMovement()
+function Player:joystickMovement(dt)
     local x = Deadzone(Joystick:getGamepadAxis("leftx"))
     local y = Deadzone(Joystick:getGamepadAxis("lefty"))
-    self.body:setPosition(self.x+self.stats.movementspeed*x,self.y+self.stats.movementspeed*y)
+    World:move(Player, Player.x+x*Player.stats.movementspeed*dt, Player.y+y*Player.stats.movementspeed*dt)
 end
 
 function Player:movement(distance, angle)
     local x = distance*math.cos(angle)
     local y = distance*math.sin(angle)
-    self.body:applyForce(x,y)
+    self.body:setLinearVelocity(x,y)
+end
+
+function Player:setPosition()
+        self.x, self.y, _, _ = World:getRect(self)
 end
 
 function Cursor:calcCrosshair()
@@ -47,13 +52,12 @@ function Player:joystickAttack()
     if trigger > 0 and not self.attackCooldown then self:attack() end
 end
 
-function Player:dash(power, dt)
-    self.dashData.dashMeter = math.min(self.dashData.dashMeter + dt/20, self.dashData.maxDashMeter)
+function Player:dash(power)
     local rx = power*math.cos(Cursor.tail.angle)
     local ry = power*math.sin(Cursor.tail.angle)
-    if self.dashData.dashMeter > 0 and love.keyboard.isDown("space") then
-        self.body:setLinearVelocity(rx,ry)
-        self.dashData.dashMeter = self.dashData.dashMeter - dt
+    if self.dashTime ~= nil and self.dashTime > 5 then
+        self.collider:applyForce(rx,ry)
+        self.dashTime = 0
     end
 end
 
@@ -66,10 +70,10 @@ function Player:attack()
     local attackNeg = Cursor.tail.angle - math.pi/4
     local attackPos = Cursor.tail.angle + math.pi/4
     for i=1, #Enemies do
-        local px, py = self.position.x , self.position.y
+        local px, py = self.x , self.y
         local dx, dy = Enemies[i].x - px, Enemies[i].y - py
         local enemyAngle = math.atan2(dy, dx)
-        if Distance(self.position.x, self.position.y, Enemies[i].x, Enemies[i].y) < self.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
+        if Distance(px, py, Enemies[i].x, Enemies[i].y) < self.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
             local crit = math.random(1,100)
             if crit <= self.hand.crit then
                 Enemies[i].hp = Enemies[i].hp - self.hand.damage*3
