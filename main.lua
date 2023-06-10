@@ -47,7 +47,7 @@ function love.update(dt)
             Player.stats.level = Player.stats.level + 1
             CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
         end
-        Cam:lookAt(Player.x, Player.y)
+        Cam:lookAt(Player.x+Player.w/2, Player.y+Player.w/2)
     end
 end
 
@@ -55,29 +55,28 @@ function love.draw()
     if State == "game" then
         Cam:attach()
             MapDrawer()
-            love.graphics.draw(Cursor.tail.image, Player.x+25, Player.y+25, Cursor.tail.angle, 1, 1, 6, 6)
+            love.graphics.draw(Cursor.tail.image, Player.x+Player.w/2, Player.y+Player.w/2, Cursor.tail.angle, 1, 1, 6, 6)
             Enemies:draw()
             love.graphics.draw(Player.character, Player.x, Player.y)
             DamageIndicators:draw()
-            if Player.attackCooldown then
-                love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
-            end
         Cam:detach()
         -- Gui stuff
         DrawXp()
         DrawHealth()
+        if Player.attackCooldown then
+            love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
+        end
     elseif State == "hub" then
         Cam:attach()
             MapDrawer()
             love.graphics.draw(Cursor.tail.image, Player.x+25, Player.y+25, Cursor.tail.angle, 1, 1, 6, 6)
             love.graphics.draw(Player.character, Player.x, Player.y)
-            if Player.attackCooldown then
-                love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
-            end
-            World:draw()
         Cam:detach()
         DrawXp()
         DrawHealth()
+        if Player.attackCooldown then
+            love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
+        end
     end
 end
 

@@ -24,7 +24,7 @@ function Player:movement(distance, angle)
 end
 
 function Player:setPosition()
-        self.x, self.y, _, _ = World:getRect(self)
+        self.x, self.y, self.w, self.h = World:getRect(self)
 end
 
 function Cursor:calcCrosshair()
