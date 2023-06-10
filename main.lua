@@ -9,7 +9,6 @@ function love.update(dt)
     Currentmap:update(dt)
     if State == "game" then
         Player:setPosition()
-        print(Enemies[1].x,Enemies[1].y)
         if Player.controller then
             Player:joystickMovement(dt)
             Cursor:calcCrosshairJoystick()
@@ -28,6 +27,7 @@ function love.update(dt)
             Player.stats.level = Player.stats.level + 1
             CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
         end
+        Cam:lookAt(Player.x, Player.y)
     elseif State == "hub" then
         Player:setPosition()
         if Player.controller then
@@ -47,30 +47,37 @@ function love.update(dt)
             Player.stats.level = Player.stats.level + 1
             CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
         end
+        Cam:lookAt(Player.x, Player.y)
     end
 end
 
 function love.draw()
     if State == "game" then
-        MapDrawer()
-        love.graphics.draw(Cursor.tail.image, Player.x+25, Player.y+25, Cursor.tail.angle, 1, 1, 6, 6)
-        love.graphics.draw(Player.character, Player.x, Player.y)
+        Cam:attach()
+            MapDrawer()
+            love.graphics.draw(Cursor.tail.image, Player.x+25, Player.y+25, Cursor.tail.angle, 1, 1, 6, 6)
+            Enemies:draw()
+            love.graphics.draw(Player.character, Player.x, Player.y)
+            DamageIndicators:draw()
+            if Player.attackCooldown then
+                love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
+            end
+        Cam:detach()
+        -- Gui stuff
         DrawXp()
         DrawHealth()
-        DamageIndicators:draw()
-        if Player.attackCooldown then
-            love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
-        end
     elseif State == "hub" then
-        MapDrawer()
-        love.graphics.draw(Cursor.tail.image, Player.x+25, Player.y+25, Cursor.tail.angle, 1, 1, 6, 6)
-        love.graphics.draw(Player.character, Player.x, Player.y)
+        Cam:attach()
+            MapDrawer()
+            love.graphics.draw(Cursor.tail.image, Player.x+25, Player.y+25, Cursor.tail.angle, 1, 1, 6, 6)
+            love.graphics.draw(Player.character, Player.x, Player.y)
+            if Player.attackCooldown then
+                love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
+            end
+            World:draw()
+        Cam:detach()
         DrawXp()
         DrawHealth()
-        if Player.attackCooldown then
-            love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
-        end
-        World:draw()
     end
 end
 
@@ -82,7 +89,7 @@ end
 
 function love.gamepadpressed(joystick, button)
     if button == "leftshoulder" then
-        Player:dash(Player.stats.movementspeed*1400)
+        Player:dash(Player.stats.movementspeed)
     end
 end
 

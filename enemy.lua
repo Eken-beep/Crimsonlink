@@ -1,19 +1,17 @@
 function Enemies:draw()
-    for i=1, #self do
-        if self[i] ~= nil then
-            local e = self[i]
+    for _, e in ipairs(self) do
+        if e ~= nil then
             love.graphics.draw(e.image, e.x, e.y)
         end
     end
 end
 
-function Enemies:spawn(enemySpawns)
-    for i,v in ipairs(enemySpawns) do
-        local enemy = math.random(1, #EnemyTypes)
-        self[i] = EnemyTypes[1]
-        self[i].x = v.x
-        self[i].y = v.y
-        print("Enemy spawned at", v.x, v.y)
+function Enemies:spawn(dt, n, x, y)
+    if not (x and y) then
+        for i=0, n do
+
+        end
+    else
     end
 end
 

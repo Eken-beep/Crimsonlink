@@ -11,7 +11,9 @@ return {
   tileheight = 32,
   nextlayerid = 9,
   nextobjectid = 52,
-  properties = {},
+  properties = {
+    ["terrain"] = true
+  },
   tilesets = {
     {
       name = "scifitiles",

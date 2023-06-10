@@ -1,12 +1,14 @@
 -- Available states aon: Startscreen, Hub, Game, Loadout selector
 State = "game"
-Sti = require("sti")
-StiBumpPlugin = require("sti.plugins.bump")
-Bump = require("bump")
+Sti = require("libraries.sti")
+StiBumpPlugin = require("libraries.sti.plugins.bump")
+Bump = require("libraries.bump")
+local camera = require("libraries.hump.camera")
+Cam = camera()
 
 Player = { stats = { hp = 100
                    , maxHp = 100
-                   , movementspeed = 2
+                   , movementspeed = 300
                    , xp = 0
                    , level = 1
                    }
@@ -61,4 +63,6 @@ function love.load()
     Currentmap = Maps.test
     Font = love.graphics.newFont(24)
     InstantiateMap(Maps.test)
+
+    SpawnTimer = 0
 end

@@ -3,6 +3,9 @@
  <editorsettings>
   <export target="test.lua" format="lua"/>
  </editorsettings>
+ <properties>
+  <property name="terrain" type="bool" value="true"/>
+ </properties>
  <tileset firstgid="1" name="scifitiles" tilewidth="32" tileheight="32" tilecount="84" columns="14">
   <image source="tilesets/scifitiles-sheet.png" width="448" height="192"/>
  </tileset>

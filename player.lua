@@ -20,7 +20,7 @@ end
 function Player:movement(distance, angle)
     local x = distance*math.cos(angle)
     local y = distance*math.sin(angle)
-    self.body:setLinearVelocity(x,y)
+    World:move(self, self.x+x, self.y+y)
 end
 
 function Player:setPosition()
@@ -56,7 +56,7 @@ function Player:dash(power)
     local rx = power*math.cos(Cursor.tail.angle)
     local ry = power*math.sin(Cursor.tail.angle)
     if self.dashTime ~= nil and self.dashTime > 5 then
-        self.collider:applyForce(rx,ry)
+        World:move(self, self.x+rx, self.y+ry)
         self.dashTime = 0
     end
 end

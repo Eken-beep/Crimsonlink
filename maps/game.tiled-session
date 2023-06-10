@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "hub.tmx",
+    "activeFile": "test.tmx",
     "expandedProjectPaths": [
         ".",
         "tilesets"
@@ -14,33 +14,41 @@
             "scale": 0.75,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 1421.3333333333335,
-                "y": 459.9999999999999
+                "x": 1017.3333333333333,
+                "y": 527.3333333333333
             }
         },
         "hub.tmx#scifitiles": {
             "scaleInDock": 1,
             "scaleInEditor": 1
         },
+        "pathway1.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 11
+        },
         "scifitiles.tsx": {
             "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "test.tmx": {
-            "scale": 0.75,
+            "scale": 0.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 1072,
-                "y": 870.6666666666666
+                "x": 2046,
+                "y": 980
             }
         },
         "test.tmx#scifitiles": {
             "scaleInDock": 1
         },
+        "tilesets/Vent1.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 32
+        },
         "tilesets/scifitiles.tsx": {
             "dynamicWrapping": false,
             "scaleInDock": 1,
-            "scaleInEditor": 1
+            "scaleInEditor": 4
         }
     },
     "last.exportedFilePath": "/home/edvin/projects/lua/game/maps",
@@ -52,13 +60,18 @@
     "map.width": 60,
     "openFiles": [
         "tilesets/scifitiles.tsx",
-        "hub.tmx"
+        "hub.tmx",
+        "test.tmx",
+        "tilesets/Vent1.tsx"
     ],
     "project": "game.tiled-project",
     "property.type": "bool",
     "recentFiles": [
         "tilesets/scifitiles.tsx",
         "hub.tmx",
+        "tilesets/Vent1.tsx",
+        "test.tmx",
+        "pathway1.tsx",
         "scifitiles.tsx"
     ],
     "tileset.lastUsedFormat": "tsx"
