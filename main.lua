@@ -19,7 +19,10 @@ function love.update(dt)
             Cursor:calcCrosshair()
             Player:keyboardMove()
         end
+        Enemies:update()
+        Enemies:move()
         Enemies:onDeath()
+        Enemies:attack()
         if Player.dashTime then Player.dashTime = Player.dashTime + dt end
         if Player.attackCooldown then Player:attackTimeout(dt) end
         if Player.stats.xp >= CurrentXpMax then
@@ -27,6 +30,7 @@ function love.update(dt)
             Player.stats.level = Player.stats.level + 1
             CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
         end
+        DamageIndicators:clean(dt)
         Cam:lookAt(Player.x, Player.y)
     elseif State == "hub" then
         Player:setPosition()
@@ -60,7 +64,7 @@ function love.draw()
             love.graphics.draw(Player.character, Player.x, Player.y)
             DamageIndicators:draw()
         Cam:detach()
-        -- Gui stuff
+        -- Gui stuff which should be static on the screen
         DrawXp()
         DrawHealth()
         if Player.attackCooldown then

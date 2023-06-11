@@ -83,9 +83,9 @@ function Player:attack()
                 DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage)
             end
             love.audio.play(Audio.hitmark)
+            self.stats.xp = self.stats.xp + 10
         end
     end
-    self.stats.xp = self.stats.xp + 10
     self.attackCooldown = true
 end
 

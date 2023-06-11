@@ -32,10 +32,10 @@
         },
         "test.tmx": {
             "scale": 0.5,
-            "selectedLayer": 0,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": 2046,
-                "y": 980
+                "x": 1684,
+                "y": 778
             }
         },
         "test.tmx#scifitiles": {

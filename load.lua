@@ -5,6 +5,7 @@ StiBumpPlugin = require("libraries.sti.plugins.bump")
 Bump = require("libraries.bump")
 local camera = require("libraries.hump.camera")
 Cam = camera()
+Timer = require("libraries.hump.timer")
 
 Player = { stats = { hp = 100
                    , maxHp = 100
@@ -31,6 +32,7 @@ Cursor = { x = love.mouse.getX()
          , tail = {image = love.graphics.newImage("assets/cursortail.png"), angle = 0}
          }
 
+-- Must have x y image damage hp.
 Enemies = {}
 
 -- each one has an x y time damage and opacity
@@ -57,12 +59,13 @@ function love.load()
     Audio = { hitmark = love.audio.newSource("assets/audio/hitmarker.mp3", "static")
             }
     EnemyTypes = {
-        {name = " ", image = Images.enemy1, x = 0, y = 0, damage = 5, hp = 70}
+        {name = "Mutant", image = Images.enemy1, x = 0, y = 0, damage = 5, hp = 70, range = 70}
     }
 
     Currentmap = Maps.test
     Font = love.graphics.newFont(24)
     InstantiateMap(Maps.test)
 
-    SpawnTimer = 0
+    Enemies[1] = {name = "Mutant", image = Images.enemy1, x = 500, y = 500, damage = 5, hp = 70, range = 70}
+    World:add(1, 500, 500, 50, 50)
 end
