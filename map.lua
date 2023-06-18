@@ -16,5 +16,5 @@ function InstantiateMap(map)
     local py = map.layers[#map.layers].objects[1].y
     print("Player spawn: ",px,py)
     World:add(Player, px, py, 50, 50)
-    --Enemies:spawn()
+    Enemies:spawn()
 end

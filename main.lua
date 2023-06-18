@@ -19,8 +19,8 @@ function love.update(dt)
             Cursor:calcCrosshair()
             Player:keyboardMove()
         end
-        Enemies:update()
-        Enemies:move()
+        Enemies:update(dt)
+        Enemies:move(dt)
         Enemies:onDeath()
         Enemies:attack()
         if Player.dashTime then Player.dashTime = Player.dashTime + dt end

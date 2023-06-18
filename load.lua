@@ -66,6 +66,6 @@ function love.load()
     Font = love.graphics.newFont(24)
     InstantiateMap(Maps.test)
 
-    Enemies[1] = {name = "Mutant", image = Images.enemy1, x = 500, y = 500, damage = 5, hp = 70, range = 70}
-    World:add(1, 500, 500, 50, 50)
+    --[[Enemies[1] = {name = "Mutant", image = Images.enemy1, x = 500, y = 500, damage = 5, hp = 70, range = 70}
+    World:add(1, 500, 500, 50, 50)]]
 end
