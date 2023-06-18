@@ -3,9 +3,9 @@ State = "game"
 Sti = require("libraries.sti")
 StiBumpPlugin = require("libraries.sti.plugins.bump")
 Bump = require("libraries.bump")
-local camera = require("libraries.hump.camera")
+local camera = require("libraries.camera")
 Cam = camera()
-Timer = require("libraries.hump.timer")
+Timer = require("libraries.timer")
 
 Player = { stats = { hp = 100
                    , maxHp = 100
