@@ -14,7 +14,7 @@ function Enemies:spawn()
         enemy.y = v.y
         enemy.time = 0
         table.insert(self, enemy)
-        World:add(#self, v.x, v.y, enemy.image:getWidth(), enemy.image:getHeight())
+        World:add(#self+i, v.x*Scale, v.y*Scale, enemy.image:getWidth(), enemy.image:getHeight())
     end
 end
 
@@ -44,8 +44,8 @@ function Enemies:move(dt)
             local dx = v.x - Player.x
             local dy = v.y - Player.y
             local a = math.atan2(-dy, -dx)
-            local ex = dt*10*math.cos(a)
-            local ey = dt*10*math.sin(a)
+            local ex = Scale*dt*40*math.cos(a)
+            local ey = Scale*dt*40*math.sin(a)
             World:move(i, v.x + ex, v.y + ey)
         end
     end

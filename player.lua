@@ -1,34 +1,34 @@
 Joystick = love.joystick.getJoysticks()[1]
-function Player:keyboardMove()
+function Player:keyboardMove(dt)
     if love.keyboard.isDown("d")  then
-        Player:movement(self.stats.movementspeed,0*math.pi)
+        Player:movement(self.stats.movementspeed*dt,0*math.pi)
     elseif love.keyboard.isDown("s")  then
-        Player:movement(self.stats.movementspeed, 0.5*math.pi)
+        Player:movement(self.stats.movementspeed*dt, 0.5*math.pi)
     elseif love.keyboard.isDown("a") then
-        Player:movement(self.stats.movementspeed,1*math.pi)
+        Player:movement(self.stats.movementspeed*dt,1*math.pi)
     elseif love.keyboard.isDown("w") then
-        Player:movement(self.stats.movementspeed, 1.5*math.pi)
+        Player:movement(self.stats.movementspeed*dt, 1.5*math.pi)
     end
 end
 
 function Player:joystickMovement(dt)
     local x = Deadzone(Joystick:getGamepadAxis("leftx"))
     local y = Deadzone(Joystick:getGamepadAxis("lefty"))
-    World:move(Player, Player.x+x*Player.stats.movementspeed*dt, Player.y+y*Player.stats.movementspeed*dt)
+    World:move(Player, Player.x+x*Player.stats.movementspeed*dt*Scale, Player.y+y*Player.stats.movementspeed*dt*Scale)
 end
 
 function Player:movement(distance, angle)
     local x = distance*math.cos(angle)
     local y = distance*math.sin(angle)
-    World:move(self, self.x+x, self.y+y)
+    World:move(self, self.x+x*Scale, self.y+y*Scale)
 end
 
 function Player:setPosition()
-        self.x, self.y, self.w, self.h = World:getRect(self)
+    self.x, self.y, self.w, self.h = World:getRect(self)
 end
 
 function Cursor:calcCrosshair()
-    local px, py = Player.x , Player.y
+    local px, py = Player.x*Scale , Player.y*Scale
     local dx, dy = self.x - px, self.y - py
     self.tail.angle = math.atan2(dy, dx)
     local cx = 250*math.cos(self.tail.angle)
@@ -53,8 +53,8 @@ function Player:joystickAttack()
 end
 
 function Player:dash(power)
-    local rx = power*math.cos(Cursor.tail.angle)
-    local ry = power*math.sin(Cursor.tail.angle)
+    local rx = Scale*power*math.cos(Cursor.tail.angle)
+    local ry = Scale*power*math.sin(Cursor.tail.angle)
     if self.dashTime ~= nil and self.dashTime > 5 then
         World:move(self, self.x+rx, self.y+ry)
         self.dashTime = 0
@@ -70,8 +70,8 @@ function Player:attack()
     local attackNeg = Cursor.tail.angle - math.pi/4
     local attackPos = Cursor.tail.angle + math.pi/4
     for i=1, #Enemies do
-        local px, py = self.x , self.y
-        local dx, dy = Enemies[i].x - px, Enemies[i].y - py
+        local px, py = self.x+self.w/2 , self.y+self.w/2
+        local dx, dy = Enemies[i].x+Enemies[i].image:getWidth()/2 - px, Enemies[i].y+Enemies[i].image:getHeight()*Scale/2 - py
         local enemyAngle = math.atan2(dy, dx)
         if Distance(px, py, Enemies[i].x, Enemies[i].y) < self.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
             local crit = math.random(1,100)

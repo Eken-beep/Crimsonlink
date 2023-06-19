@@ -17,7 +17,7 @@ function love.update(dt)
             Cursor.x = love.mouse.getX()
             Cursor.y = love.mouse.getY()
             Cursor:calcCrosshair()
-            Player:keyboardMove()
+            Player:keyboardMove(dt)
         end
         Enemies:update(dt)
         Enemies:move(dt)
@@ -31,7 +31,6 @@ function love.update(dt)
             CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
         end
         DamageIndicators:clean(dt)
-        Cam:lookAt(Player.x, Player.y)
     elseif State == "hub" then
         Player:setPosition()
         if Player.controller then
@@ -42,7 +41,7 @@ function love.update(dt)
             Cursor.x = love.mouse.getX()
             Cursor.y = love.mouse.getY()
             Cursor:calcCrosshair()
-            Player:keyboardMove()
+            Player:keyboardMove(dt)
         end
         if Player.dashTime then Player.dashTime = Player.dashTime + dt end
         if Player.attackCooldown then Player:attackTimeout(dt) end
@@ -51,19 +50,20 @@ function love.update(dt)
             Player.stats.level = Player.stats.level + 1
             CurrentXpMax = math.floor(100*math.pow(1.1, Player.stats.level))
         end
-        Cam:lookAt(Player.x+Player.w/2, Player.y+Player.w/2)
     end
 end
 
 function love.draw()
     if State == "game" then
-        Cam:attach()
+        love.graphics.push()
+        love.graphics.scale(Scale)
             MapDrawer()
             love.graphics.draw(Cursor.tail.image, Player.x+Player.w/2, Player.y+Player.w/2, Cursor.tail.angle, 1, 1, 6, 6)
             Enemies:draw()
-            love.graphics.draw(Player.character, Player.x, Player.y)
+            love.graphics.draw(Player.character, Player.x, Player.y--[[, 0, Scale, Scale]])
             DamageIndicators:draw()
-        Cam:detach()
+            Currentmap:bump_draw()
+        love.graphics.pop()
         -- Gui stuff which should be static on the screen
         DrawXp()
         DrawHealth()
