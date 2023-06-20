@@ -56,6 +56,7 @@ end
 function love.draw()
     if State == "game" then
         love.graphics.push()
+        love.graphics.translate(MapXOffset, MapYOffset)
         love.graphics.scale(Scale)
             MapDrawer()
             love.graphics.draw(Cursor.tail.image, Player.x+Player.w/2, Player.y+Player.w/2, Cursor.tail.angle, 1, 1, 6, 6)

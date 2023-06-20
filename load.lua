@@ -42,9 +42,9 @@ function love.load()
     DTotal = 0
     love.window.setMode(1920, 1066, {fullscreen=true, resizable=false, vsync=false, centered = true, minwidth=400, minheight=300})
     W, H = love.graphics.getDimensions()
-    MapXOffset = 0
-    MapYOffset = 0
     Scale = math.min(W/(60*32), H/(33*32))
+    MapXOffset = W/2 - Scale*60*32/2
+    MapYOffset = H/2 - Scale*33*32/2
 
     love.mouse.setVisible(true)
     local joysticks = love.joystick.getJoysticks()

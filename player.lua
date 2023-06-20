@@ -28,7 +28,7 @@ function Player:setPosition()
 end
 
 function Cursor:calcCrosshair()
-    local px, py = Player.x*Scale , Player.y*Scale
+    local px, py = Player.x*Scale+MapXOffset, Player.y*Scale+MapYOffset
     local dx, dy = self.x - px, self.y - py
     self.tail.angle = math.atan2(dy, dx)
     local cx = 250*math.cos(self.tail.angle)
