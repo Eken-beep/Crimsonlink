@@ -44,7 +44,7 @@ function love.load()
     W, H = love.graphics.getDimensions()
     MapXOffset = 0
     MapYOffset = 0
-    Scale = 1/math.max(60*32/W, 33*32/H)
+    Scale = math.min(W/(60*32), H/(33*32))
 
     love.mouse.setVisible(true)
     local joysticks = love.joystick.getJoysticks()

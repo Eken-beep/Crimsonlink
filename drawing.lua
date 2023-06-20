@@ -39,8 +39,8 @@ function DrawDash()
 end
 
 function DamageIndicators:add(x, y, damage)
-    local rx = math.random(x-50,x+50)
-    local ry = math.random(y-50,y+50)
+    local rx = math.random(x-Scale*50,x+Scale*50)
+    local ry = math.random(y-Scale*50,y+Scale*50)
     table.insert(self, {rx,ry,0,damage,1})
 end
 
