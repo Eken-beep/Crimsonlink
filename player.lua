@@ -27,6 +27,42 @@ function Player:setPosition()
     self.x, self.y, self.w, self.h = World:getRect(self)
 end
 
+function Player:animate()
+    local walking = function()
+        if love.keyboard.isDown("a") or
+           love.keyboard.isDown("s") or
+           love.keyboard.isDown("d") or
+           love.keyboard.isDown("w") or
+           Deadzone(Joystick:getGamepadAxis("leftx")) > 0 or
+           Deadzone(Joystick:getGamepadAxis("lefty")) > 0
+           then return true
+        else return false
+        end
+    end
+    local frame = math.ceil(self.animationTime)
+    if frame == #Images.animatedPlayer then self.animationTime = 0.01 end
+    if Cursor.tail.angle > math.pi*0.5 or Cursor.tail.angle < math.pi*-0.5 then
+        self.flipped = true
+    else self.flipped = false
+    end
+    if walking then
+        if self.flipped then
+            love.graphics.draw(Images.animatedPlayer[frame], Player.x, Player.y, 0, -1, 1, Player.w)
+        else
+            love.graphics.draw(Images.animatedPlayer[frame], Player.x, Player.y)
+        end
+    else
+        if self.flipped then
+            love.graphics.draw(Images.animatedPlayer[1], Player.x, Player.y, 0, -1, 1, Player.w)
+        else
+            love.graphics.draw(Images.animatedPlayer[1], Player.x, Player.y)
+        end
+    end
+end
+
+function Player:draw()
+end
+
 function Cursor:calcCrosshair()
     local px, py = Player.x*Scale+MapXOffset, Player.y*Scale+MapYOffset
     local dx, dy = self.x - px, self.y - py
@@ -50,6 +86,10 @@ end
 function Player:joystickAttack()
     local trigger = Joystick:getGamepadAxis("triggerright")
     if trigger > 0 and not self.attackCooldown then self:attack() end
+end
+
+function Player:addHealth(hp)
+    self.stats.hp = math.min(self.stats.hp + hp, self.stats.maxHp)
 end
 
 function Player:dash(power)
@@ -77,7 +117,7 @@ function Player:attack()
             local crit = math.random(1,100)
             if crit <= self.hand.crit then
                 Enemies[i].hp = Enemies[i].hp - self.hand.damage*3
-                DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage*3)
+                DamageIndicators:add(Enemies[i].x+25, Enemies[i].y+25, self.hand.damage*3)
             else
                 Enemies[i].hp = Enemies[i].hp - self.hand.damage
                 DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage)
@@ -94,5 +134,11 @@ function Player:attackTimeout(dt)
     if self.attackTime >= self.hand.cooldown then
         self.attackCooldown = false
         self.attackTime = 0
+    end
+end
+
+function Player.backpack:useItem(i)
+    if self[i] ~= Items.empty then
+        
     end
 end

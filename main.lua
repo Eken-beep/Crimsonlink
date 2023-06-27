@@ -7,6 +7,7 @@ require("map")
 
 function love.update(dt)
     Currentmap:update(dt)
+    Player.animationTime = Player.animationTime + dt
     if State == "game" then
         Player:setPosition()
         if Player.controller then
@@ -61,16 +62,21 @@ function love.draw()
             MapDrawer()
             love.graphics.draw(Cursor.tail.image, Player.x+Player.w/2, Player.y+Player.w/2, Cursor.tail.angle, 1, 1, 6, 6)
             Enemies:draw()
-            love.graphics.draw(Player.character, Player.x, Player.y--[[, 0, Scale, Scale]])
+            Player:animate()
+            --love.graphics.draw(Player.character, Player.x, Player.y--[[, 0, Scale, Scale]])
             DamageIndicators:draw()
             Currentmap:bump_draw()
         love.graphics.pop()
         -- Gui stuff which should be static on the screen
+        love.graphics.push()
+        love.graphics.scale(Scale)
         DrawXp()
         DrawHealth()
+        Player:drawBackpack()
         if Player.attackCooldown then
             love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
         end
+        love.graphics.pop()
     elseif State == "hub" then
         Cam:attach()
             MapDrawer()
@@ -79,6 +85,7 @@ function love.draw()
         Cam:detach()
         DrawXp()
         DrawHealth()
+        Player:drawBackpack()
         if Player.attackCooldown then
             love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
         end
@@ -94,6 +101,28 @@ end
 function love.gamepadpressed(joystick, button)
     if button == "leftshoulder" then
         Player:dash(Player.stats.movementspeed)
+    elseif button == "dpup" then
+        Player.backpack:useItem(1)
+    elseif button == "dpright" then
+        Player.backpack:useItem(2)
+    elseif button == "dpdown" then
+        Player.backpack:useItem(3)
+    elseif button == "dpleft" then
+        Player.backpack:useItem(4)
+    end
+end
+
+function love.keypressed(key)
+    if key == "space" then
+        Player:dash(Player.stats.movementspeed)
+    elseif key == "1" then
+        Player.backpack:useItem(1)
+    elseif key == "2" then
+        Player.backpack:useItem(2)
+    elseif key == "3" then
+        Player.backpack:useItem(3)
+    elseif key == "4" then
+        Player.backpack:useItem(4)
     end
 end
 

@@ -5,15 +5,15 @@ function DrawHealth()
 	local color = {2-2*c,2*c,0}
 	love.graphics.setColor(color)
 	love.graphics.print('Health: ' .. math.floor(Player.stats.hp),sx,sy)
-	love.graphics.rectangle('fill', sx,1.5*sy, Player.stats.hp, sy/2)
+	love.graphics.rectangle('fill', sx, 1.5*sy, Player.stats.hp, sy/2)
 
 	love.graphics.setColor(1,1,1)
-	love.graphics.rectangle('line', sx,1.5*sy, Player.stats.maxHp, sy/2)
+	love.graphics.rectangle('line', sx, 1.5*sy, Player.stats.maxHp, sy/2)
 end
 
 function DrawXp()
-    local lx,ly = W*0.7,20
-    local x, y  = W/2-lx/2, 60
+    local lx,ly = 1920*0.7, 20
+    local x, y  = 1920/2 - lx/2, 60
     local xpPercentage = Player.stats.xp/CurrentXpMax
 
     love.graphics.setColor(0,0,0)
@@ -21,7 +21,7 @@ function DrawXp()
     love.graphics.setColor(0,0,1)
     love.graphics.rectangle("fill", x, y, xpPercentage*lx, ly)
     love.graphics.setColor(0,0,0)
-    love.graphics.print(Player.stats.xp .. ' / ' .. CurrentXpMax, (W/2)-20, 64)
+    love.graphics.print(Player.stats.xp .. ' / ' .. CurrentXpMax, (1920/2)-20, 64)
     love.graphics.print('Level ' .. Player.stats.level, W-50, 20)
     love.graphics.setColor(1,1,1)
 end
@@ -65,4 +65,11 @@ function DamageIndicators:draw()
             love.graphics.setColor(1,1,1)
         end
     end
+end
+
+function Player:drawBackpack()
+    local spacingX, spacingY = 150, 150
+
+    love.graphics.circle("fill", W-spacingX, H-spacingY, 100)
+    love.graphics.setColor(1,1,1)
 end

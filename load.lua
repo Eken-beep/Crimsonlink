@@ -15,12 +15,15 @@ Player = { stats = { hp = 100
                    }
          , dashTime = 0
          , x = 900, y = 500
-         , inventory = {}
+         -- Inventory is the naming of the dpad item selector, which allows a max of four items at a time
+         , backpack = { Items.empty, Items.empty, Items.empty, Items.empty}
          , hand = Weapons.hand
          , character = love.graphics.newImage("assets/Maincharacter1.png")
          , attackCooldown = false
          , attackTime = 0
-         , controller = false
+         , controller = true
+         , flipped = false
+         , animationTime = 0.01
          }
 
 CurrentXpMax = 100*math.pow(1.1, Player.stats.level)
@@ -53,7 +56,10 @@ function love.load()
            , test = Sti("maps/test.lua", {"bump"})
            }
     Images = { attackBlock = love.graphics.newImage("assets/stop.png")
+             -- The only image that is a table, animation selects one of the images to draw
+             , animatedPlayer = {love.graphics.newImage("assets/Maincharacter1.png")}
              , enemy1 = love.graphics.newImage("assets/enemy.png")
+             , empty = love.graphics.newImage("assets/stop.png")
              }
 
     Audio = { hitmark = love.audio.newSource("assets/audio/hitmarker.mp3", "static")

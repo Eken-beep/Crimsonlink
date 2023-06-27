@@ -21,7 +21,7 @@ end
 function Enemies:attack()
     for i, v in ipairs(self) do
         if Distance(v.x+25, v.y+25, Player.x+Player.w/2, Player.y+Player.h/2) < v.range and v.time > 2 then
-            Player.stats.hp = Player.stats.hp - v.damage
+            Player:addHealth(-v.damage)
             v.time = 0
         end
     end
