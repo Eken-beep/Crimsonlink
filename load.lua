@@ -18,7 +18,7 @@ Player = { stats = { hp = 100
          -- Inventory is the naming of the dpad item selector, which allows a max of four items at a time
          , backpack = { Items.empty, Items.empty, Items.empty, Items.empty}
          , hand = Weapons.hand
-         , character = love.graphics.newImage("assets/Maincharacter1.png")
+         , character = love.graphics.newImage("assets/player/Maincharacter_1.png")
          , attackCooldown = false
          , attackTime = 0
          , controller = true
@@ -41,6 +41,9 @@ Enemies = {}
 -- each one has an x y time damage and opacity
 DamageIndicators = {}
 
+-- List of items that are dropped in a room
+DroppedItems = {}
+
 function love.load()
     DTotal = 0
     love.window.setMode(1920, 1066, {fullscreen=true, resizable=false, vsync=false, centered = true, minwidth=400, minheight=300})
@@ -57,12 +60,17 @@ function love.load()
            }
     Images = { attackBlock = love.graphics.newImage("assets/stop.png")
              -- The only image that is a table, animation selects one of the images to draw
-             , animatedPlayer = {love.graphics.newImage("assets/Maincharacter1.png")}
+             , animatedPlayer = { love.graphics.newImage("assets/player/Maincharacter_1.png")
+                                , love.graphics.newImage("assets/player/Maincharacter_2.png")
+                                , love.graphics.newImage("assets/player/Maincharacter_3.png")
+                                , love.graphics.newImage("assets/player/Maincharacter_1.png")
+                                }
              , enemy1 = love.graphics.newImage("assets/enemy.png")
              , empty = love.graphics.newImage("assets/stop.png")
              }
 
     Audio = { hitmark = love.audio.newSource("assets/audio/hitmarker.mp3", "static")
+            , oof = love.audio.newSource("assets/audio/oof.mp3", "static")
             }
     EnemyTypes = {
         {name = "Mutant", image = Images.enemy1, x = 0, y = 0, damage = 5, hp = 70, range = 70*Scale}

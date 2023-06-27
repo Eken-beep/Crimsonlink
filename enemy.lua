@@ -23,6 +23,7 @@ function Enemies:attack()
         if Distance(v.x+25, v.y+25, Player.x+Player.w/2, Player.y+Player.h/2) < v.range and v.time > 2 then
             Player:addHealth(-v.damage)
             v.time = 0
+            love.audio.play(Audio.oof)
         end
     end
 end
