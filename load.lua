@@ -18,7 +18,7 @@ Player = { stats = { hp = 100
          -- Inventory is the naming of the dpad item selector, which allows a max of four items at a time
          , backpack = { Items.empty, Items.empty, Items.empty, Items.empty}
          , hand = Weapons.hand
-         , character = love.graphics.newImage("assets/player/Maincharacter_1.png")
+         , character = love.graphics.newImage("assets/player/MainCharacter1.png")
          , attackCooldown = false
          , attackTime = 0
          , controller = true
@@ -34,6 +34,17 @@ Cursor = { x = love.mouse.getX()
          , attackAnimation = false
          , tail = {image = love.graphics.newImage("assets/cursortail.png"), angle = 0}
          }
+
+Keybinds = {
+    controller = { backpack = { "dpup", "dpright", "dpdown", "dpleft"}
+                 , dash = "leftshoulder"
+                 , pickupMode = "a"
+                 },
+    keyboard   = { backpack = { "1", "2", "3", "4" }
+                 , dash = "space"
+                 , pickupMode = "lctrl"
+                 }
+}
 
 -- Must have x y image damage hp.
 Enemies = {}
@@ -60,12 +71,16 @@ function love.load()
            }
     Images = { attackBlock = love.graphics.newImage("assets/stop.png")
              -- The only image that is a table, animation selects one of the images to draw
-             , animatedPlayer = { love.graphics.newImage("assets/player/Maincharacter_1.png")
-                                , love.graphics.newImage("assets/player/Maincharacter_2.png")
-                                , love.graphics.newImage("assets/player/Maincharacter_3.png")
-                                , love.graphics.newImage("assets/player/Maincharacter_1.png")
+             , animatedPlayer = { love.graphics.newImage("assets/player/MainCharacter1.png")
+                                , love.graphics.newImage("assets/player/MainCharacter2.png")
+                                , love.graphics.newImage("assets/player/MainCharacter3.png")
+                                , love.graphics.newImage("assets/player/MainCharacter4.png")
+                                , love.graphics.newImage("assets/player/MainCharacter5.png")
+                                , love.graphics.newImage("assets/player/MainCharacter6.png")
+                                , love.graphics.newImage("assets/player/MainCharacter7.png")
+                                , love.graphics.newImage("assets/player/MainCharacter1.png")
                                 }
-             , enemy1 = love.graphics.newImage("assets/enemy.png")
+             , enemy1 = love.graphics.newImage("assets/Enemy1.png")
              , empty = love.graphics.newImage("assets/stop.png")
              }
 
@@ -81,5 +96,5 @@ function love.load()
     InstantiateMap(Maps.test)
 
     Enemies[1] = {name = "Mutant", image = Images.enemy1, x = 500, y = 500, damage = 5, hp = 70, range = 70, time = 0}
-    World:add(1, 500*Scale, 500*Scale, 50, 50)
+    World:add(1, 500*Scale, 500*Scale, Enemies[1].image:getWidth(), Enemies[1].image:getHeight())
 end

@@ -67,9 +67,12 @@ function DamageIndicators:draw()
     end
 end
 
-function Player:drawBackpack()
-    local spacingX, spacingY = 150, 150
+function Player.backpack:drawBackpack()
+    for i,item in ipairs(self) do
+        -- The slot x position, calculated by the position out of 4 slots where i is the index of the slot and -3 because the first slot begins 2 steps to the left of the middle of the screen
+        local slotX = 1920/2-(50*(i-3))
 
-    love.graphics.circle("fill", W-spacingX, H-spacingY, 100)
-    love.graphics.setColor(1,1,1)
+        love.graphics.rectangle("line", slotX, 1080-50*Scale, 50, 50)
+        love.graphics.draw(item.image, slotX, 1080-50*Scale)
+    end
 end

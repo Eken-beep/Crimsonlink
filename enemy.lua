@@ -20,7 +20,7 @@ end
 
 function Enemies:attack()
     for i, v in ipairs(self) do
-        if Distance(v.x+25, v.y+25, Player.x+Player.w/2, Player.y+Player.h/2) < v.range and v.time > 2 then
+        if Distance(v.x+v.w/2, v.y+v.h/2, Player.x+Player.w/2, Player.y+Player.h/2) < v.range and v.time > 2 then
             Player:addHealth(-v.damage)
             v.time = 0
             love.audio.play(Audio.oof)
@@ -54,8 +54,7 @@ end
 
 function Enemies:update(dt)
     for i, v in ipairs(self) do
-        local x, y, _, _ = World:getRect(i)
-        v.x, v.y = x, y
+        v.x, v.y, v.w, v.h = World:getRect(i)
         v.time = v.time + dt
     end
 end

@@ -28,24 +28,18 @@ function Player:setPosition()
 end
 
 function Player:animate()
-    local walking = function()
-        if love.keyboard.isDown("a") or
-           love.keyboard.isDown("s") or
-           love.keyboard.isDown("d") or
-           love.keyboard.isDown("w") or
-           Deadzone(Joystick:getGamepadAxis("leftx")) > 0 or
-           Deadzone(Joystick:getGamepadAxis("lefty")) > 0
-           then return true
-        else return false
-        end
-    end
     local frame = math.ceil(self.animationTime)
     if frame == #Images.animatedPlayer then self.animationTime = 0.01 end
     if Cursor.tail.angle > math.pi*0.5 or Cursor.tail.angle < math.pi*-0.5 then
         self.flipped = true
     else self.flipped = false
     end
-    if walking then
+    if love.keyboard.isDown("a") or
+       love.keyboard.isDown("s") or
+       love.keyboard.isDown("d") or
+       love.keyboard.isDown("w") or
+       math.abs(Deadzone(Joystick:getGamepadAxis("leftx"))) > 0 or
+       math.abs(Deadzone(Joystick:getGamepadAxis("lefty"))) > 0 then
         if self.flipped then
             love.graphics.draw(Images.animatedPlayer[frame], Player.x, Player.y, 0, -1, 1, Player.w)
         else
@@ -111,13 +105,13 @@ function Player:attack()
     local attackPos = Cursor.tail.angle + math.pi/4
     for i=1, #Enemies do
         local px, py = self.x+self.w/2 , self.y+self.w/2
-        local dx, dy = Enemies[i].x+Enemies[i].image:getWidth()/2 - px, Enemies[i].y+Enemies[i].image:getHeight()*Scale/2 - py
+        local dx, dy = Enemies[i].x+Enemies[i].w*Scale/2 - px, Enemies[i].y+Enemies[i].h*Scale/2 - py
         local enemyAngle = math.atan2(dy, dx)
         if Distance(px, py, Enemies[i].x, Enemies[i].y) < self.hand.range and AngleOverlap(attackNeg, enemyAngle, attackPos) then
             local crit = math.random(1,100)
             if crit <= self.hand.crit then
                 Enemies[i].hp = Enemies[i].hp - self.hand.damage*3
-                DamageIndicators:add(Enemies[i].x+25, Enemies[i].y+25, self.hand.damage*3)
+                DamageIndicators:add(Enemies[i].x+Enemies[i].w/2, Enemies[i].y+Enemies[i].h/2, self.hand.damage*3)
             else
                 Enemies[i].hp = Enemies[i].hp - self.hand.damage
                 DamageIndicators:add(Enemies[i].x, Enemies[i].y, self.hand.damage)

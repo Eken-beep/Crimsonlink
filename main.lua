@@ -7,7 +7,7 @@ require("map")
 
 function love.update(dt)
     Currentmap:update(dt)
-    Player.animationTime = Player.animationTime + dt
+    Player.animationTime = Player.animationTime + dt*16
     if State == "game" then
         Player:setPosition()
         if Player.controller then
@@ -24,6 +24,10 @@ function love.update(dt)
         Enemies:move(dt)
         Enemies:onDeath()
         Enemies:attack()
+
+        DroppedItems:update(dt)
+        DroppedItems:pickup()
+
         if Player.dashTime then Player.dashTime = Player.dashTime + dt end
         if Player.attackCooldown then Player:attackTimeout(dt) end
         if Player.stats.xp >= CurrentXpMax then
@@ -66,13 +70,14 @@ function love.draw()
             --love.graphics.draw(Player.character, Player.x, Player.y--[[, 0, Scale, Scale]])
             DamageIndicators:draw()
             Currentmap:bump_draw()
+            DroppedItems:draw()
+            Player.backpack:drawBackpack()
         love.graphics.pop()
         -- Gui stuff which should be static on the screen
         love.graphics.push()
         love.graphics.scale(Scale)
         DrawXp()
         DrawHealth()
-        Player:drawBackpack()
         if Player.attackCooldown then
             love.graphics.draw(Images.attackBlock, 32, 100, 0, 0.05, 0.05)
         end
@@ -99,29 +104,31 @@ function love.mousepressed(x, y, button)
 end
 
 function love.gamepadpressed(joystick, button)
-    if button == "leftshoulder" then
+    if button == Keybinds.controller.dash then
         Player:dash(Player.stats.movementspeed)
-    elseif button == "dpup" then
+    elseif button == Keybinds.controller.backpack[1] and not Joystick:isGamepadDown("a") then
         Player.backpack:useItem(1)
-    elseif button == "dpright" then
+    elseif button == Keybinds.controller.backpack[2] and not Joystick:isGamepadDown("a") then
         Player.backpack:useItem(2)
-    elseif button == "dpdown" then
+    elseif button == Keybinds.controller.backpack[3] and not Joystick:isGamepadDown("a") then
         Player.backpack:useItem(3)
-    elseif button == "dpleft" then
+    elseif button == Keybinds.controller.backpack[4] and not Joystick:isGamepadDown("a") then
         Player.backpack:useItem(4)
+    elseif button == "y" then
+        DroppedItems:add(Items.potionHp, 1920/2, 1080/2)
     end
 end
 
 function love.keypressed(key)
-    if key == "space" then
+    if key == Keybinds.keyboard.dash then
         Player:dash(Player.stats.movementspeed)
-    elseif key == "1" then
+    elseif key == Keybinds.keyboard.backpack[1] and not love.keyboard.isDown("lctrl") then
         Player.backpack:useItem(1)
-    elseif key == "2" then
+    elseif key == Keybinds.keyboard.backpack[2] and not love.keyboard.isDown("lctrl") then
         Player.backpack:useItem(2)
-    elseif key == "3" then
+    elseif key == Keybinds.keyboard.backpack[3] and not love.keyboard.isDown("lctrl") then
         Player.backpack:useItem(3)
-    elseif key == "4" then
+    elseif key == Keybinds.keyboard.backpack[4] and not love.keyboard.isDown("lctrl") then
         Player.backpack:useItem(4)
     end
 end
