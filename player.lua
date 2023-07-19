@@ -54,9 +54,6 @@ function Player:animate()
     end
 end
 
-function Player:draw()
-end
-
 function Cursor:calcCrosshair()
     local px, py = Player.x*Scale+MapXOffset, Player.y*Scale+MapYOffset
     local dx, dy = self.x - px, self.y - py
@@ -133,6 +130,12 @@ end
 
 function Player.backpack:useItem(i)
     if self[i] ~= Items.empty then
-        
+        if self[i].ammount - 1 == 0 then self[i] = Items.empty end
+            if self[i] == Items.gearbox then
+                self[i].ammount = self[i].ammount - 1
+                Player:addHealth(30)
+            elseif self[i] == Items.potionStrength then
+                return
+            end
     end
 end
