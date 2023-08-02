@@ -20,7 +20,7 @@ function love.update(dt)
 			Cursor:calcCrosshair()
 			Player:keyboardMove(dt)
 		end
-		Enemies:update(dt)
+		--Enemies:update(dt)
 		Enemies:move(dt)
 		Enemies:onDeath()
 		Enemies:attack()
@@ -103,16 +103,16 @@ function love.mousepressed(x, y, button)
 	end
 end
 
-function love.gamepadpressed(joystick, button)
+function love.gamepadpressed(_, button)
 	if button == Keybinds.controller.dash then
 		Player:dash(Player.stats.movementspeed)
-	elseif button == Keybinds.controller.backpack[1] and not Joystick:isGamepadDown("a") then
+	elseif button == Keybinds.controller.backpack[1] and not Joystick:isGamepadDown(Keybinds.controller.pickupMode) then
 		Player.backpack:useItem(1)
-	elseif button == Keybinds.controller.backpack[2] and not Joystick:isGamepadDown("a") then
+	elseif button == Keybinds.controller.backpack[2] and not Joystick:isGamepadDown(Keybinds.controller.pickupMode) then
 		Player.backpack:useItem(2)
-	elseif button == Keybinds.controller.backpack[3] and not Joystick:isGamepadDown("a") then
+	elseif button == Keybinds.controller.backpack[3] and not Joystick:isGamepadDown(Keybinds.controller.pickupMode) then
 		Player.backpack:useItem(3)
-	elseif button == Keybinds.controller.backpack[4] and not Joystick:isGamepadDown("a") then
+	elseif button == Keybinds.controller.backpack[4] and not Joystick:isGamepadDown(Keybinds.controller.pickupMode) then
 		Player.backpack:useItem(4)
 	elseif button == "y" then
 		DroppedItems:add(Items.gearbox, 1920 / 2, 1080 / 2)
@@ -122,13 +122,13 @@ end
 function love.keypressed(key)
 	if key == Keybinds.keyboard.dash then
 		Player:dash(Player.stats.movementspeed)
-	elseif key == Keybinds.keyboard.backpack[1] and not love.keyboard.isDown("lctrl") then
+	elseif key == Keybinds.keyboard.backpack[1] and not love.keyboard.isDown(Keybinds.keyboard.pickupMode) then
 		Player.backpack:useItem(1)
-	elseif key == Keybinds.keyboard.backpack[2] and not love.keyboard.isDown("lctrl") then
+	elseif key == Keybinds.keyboard.backpack[2] and not love.keyboard.isDown(Keybinds.keyboard.pickupMode) then
 		Player.backpack:useItem(2)
-	elseif key == Keybinds.keyboard.backpack[3] and not love.keyboard.isDown("lctrl") then
+	elseif key == Keybinds.keyboard.backpack[3] and not love.keyboard.isDown(Keybinds.keyboard.pickupMode) then
 		Player.backpack:useItem(3)
-	elseif key == Keybinds.keyboard.backpack[4] and not love.keyboard.isDown("lctrl") then
+	elseif key == Keybinds.keyboard.backpack[4] and not love.keyboard.isDown(Keybinds.keyboard.pickupMode) then
 		Player.backpack:useItem(4)
 	end
 end

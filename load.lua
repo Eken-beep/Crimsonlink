@@ -100,9 +100,8 @@ function love.load()
 		test = Sti("maps/test.lua", { "bump" })
 	}
 	Images = {
-		attackBlock = love.graphics.newImage("assets/stop.png")
+		attackBlock = love.graphics.newImage("assets/stop.png"),
 		-- The only image that is a table, animation selects one of the images to draw
-		,
 		animatedPlayer = { love.graphics.newImage("assets/player/MainCharacter1.png")
 						, love.graphics.newImage("assets/player/MainCharacter2.png")
 						, love.graphics.newImage("assets/player/MainCharacter3.png")
@@ -121,13 +120,15 @@ function love.load()
 		oof = love.audio.newSource("assets/audio/oof.mp3", "static")
 	}
 	EnemyTypes = {
-		{ name = "Mutant", image = Images.enemy1, x = 0, y = 0, damage = 5, hp = 70, range = 70 * Scale }
+		{ type = "enemy", image = Images.enemy1, x = 0, y = 0, damage = 5, hp = 70, range = 70 * Scale }
 	}
 
 	Currentmap = Maps.test
 	Font = love.graphics.newFont(24)
 	InstantiateMap(Maps.test)
 
-	Enemies[1] = { name = "Mutant", image = Images.enemy1, x = 500, y = 500, damage = 5, hp = 70, range = 90, time = 0 }
+	Enemies[1] = { id = 1, image = Images.enemy1, x = 500, y = 500, damage = 5, hp = 70, range = 90, time = 0, w = Images.enemy1:getWidth(), h = Images.enemy1:getHeight() }
 	World:add(1, 500 * Scale, 500 * Scale, Enemies[1].image:getWidth(), Enemies[1].image:getHeight())
+	Enemies[2] = { id = 2, image = Images.enemy1, x = 100, y = 300, damage = 5, hp = 70, range = 90, time = 0, w = Images.enemy1:getWidth(), h = Images.enemy1:getHeight() }
+	World:add(2, 500 * Scale, 500 * Scale, Enemies[1].image:getWidth(), Enemies[1].image:getHeight())
 end
