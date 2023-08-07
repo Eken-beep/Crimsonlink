@@ -44,9 +44,12 @@ function World.components:add(name,defaultValue)
     self[name] = defaultValue
 end
 
+-- Where entities is a table of tables of components, each  subtable is one entity onto itself
+-- Systems should be a table of named functions simply
 function World:create(components, entities, systems)
     self.components = components
-    for i,v in ipairs(entities) do
-        World.entities:add()
+    for _,v in ipairs(entities) do
+        World.entities:add(v)
     end
+    self.systems = systems
 end
