@@ -1,27 +1,22 @@
 local tiny = require("lib.tiny")
-local spawnBullet = {}
+local spawnBullet = tiny.processingSystem()
 
-local px,py
-local filter = tiny.requireAll("velocity", "position", "controllable")
+spawnBullet.filter = tiny.requireAll("velocity", "position", "controllable")
+spawnBullet.updateSystem = true
 
-for _,v in ipairs(World.entities) do
-    if filter(nil,v) then
-        px,py = v.position.x, v.position.y
+function spawnBullet:process(e)
+    for i,v in ipairs(Events) do
+        if v() == "addBullet" then
+            local angle = math.atan2(e.position.y-v.y,e.position.x-v.y)
+            World:addEntity(setmetatable({
+                parentIsPlayer = true,
+                position = {x = e.position.x, y = e.position.y},
+                velocity = {x = math.cos(angle)*-100,
+                            y = math.sin(angle)*-100},
+            },{ __index = require("src.entities.Bullet")}))
+            table.remove(Events,i)
+        end
     end
-end
-
-spawnBullet.newBullet = function (x,y)
-    local angle = math.atan2(py-y,px-x)
-    local bullet = {
-        parentIsPlayer = true,
-        position = {x = px, y = py},
-        velocity = {x = math.cos(angle)*-100,
-                    y = math.sin(angle)*-100},
-    }
-    setmetatable(bullet, {
-        __index = require("src.entities.Bullet")
-    })
-    World:addEntity(bullet)
 end
 
 return spawnBullet
