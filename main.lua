@@ -1,6 +1,9 @@
 local tiny = require("lib.tiny")
 local assets = require("src.Assets")
 
+PlayerX = 0
+PlayerY = 0
+
 function love.load()
     Scale = 2
     Events = {}
@@ -10,7 +13,8 @@ function love.load()
         require("src.systems.Movement"),
         require("src.systems.Input"),
         require("src.systems.SpawnEnemy"),
-        require("src.systems.SpawnBullet")
+        require("src.systems.SpawnBullet"),
+        require("src.systems.StepAi")
     )
 end
 

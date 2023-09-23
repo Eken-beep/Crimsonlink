@@ -13,6 +13,9 @@ function movement:process(e,dt)
             tiny.removeEntity(World, e)
         end
     end
+    if e.controllable then
+        PlayerX, PlayerY = e.position.x, e.position.y
+    end
 end
 
 return movement
