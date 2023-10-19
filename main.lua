@@ -3,6 +3,7 @@ local assets = require("src.Assets")
 
 PlayerX = 0
 PlayerY = 0
+DrawHitboxes = true
 
 function love.load()
     Scale = 2
@@ -14,7 +15,13 @@ function love.load()
         require("src.systems.Input"),
         require("src.systems.SpawnEnemy"),
         require("src.systems.SpawnBullet"),
-        require("src.systems.StepAi")
+        require("src.systems.StepAi"),
+        {
+            position = {x=100,y=300},
+            hitbox = {w=50,h=50},
+            sprite = assets.gearbox,
+            collidable = true,
+        }
     )
 end
 

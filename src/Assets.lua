@@ -12,5 +12,6 @@ return {
     },
     enemies = {
         love.graphics.newImage("assets/Enemy1.png")
-    }
+    },
+    gearbox = love.graphics.newImage("assets/gearbox.png")
 }
