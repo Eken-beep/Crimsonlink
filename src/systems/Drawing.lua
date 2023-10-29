@@ -10,6 +10,9 @@ function drawingSystem:process(e)
     else
         love.graphics.draw(e.sprite, e.position.x, e.position.y)
     end
+    if e.hitbox and DrawHitboxes then
+        love.graphics.rectangle("line",e.position.x,e.position.y,e.hitbox.w,e.hitbox.h)
+    end
 end
 
 return drawingSystem
