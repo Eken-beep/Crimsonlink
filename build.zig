@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) !void {
     var raylib_math = rl.math.getModule(b, "raylib-zig");
     //web exports are completely separate
     if (target.getOsTag() == .emscripten) {
-        const exe_lib = rl.compileForEmscripten(b, "Snake", "src/main.zig", target, optimize);
+        const exe_lib = rl.compileForEmscripten(b, "Crimsonlink", "src/main.zig", target, optimize);
         exe_lib.addModule("raylib", raylib);
         exe_lib.addModule("raylib-math", raylib_math);
         const raylib_artifact = rl.getArtifact(b, target, optimize);
@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) !void {
         return;
     }
 
-    const exe = b.addExecutable(.{ .name = "Snake", .root_source_file = .{ .path = "src/main.zig" }, .optimize = optimize, .target = target });
+    const exe = b.addExecutable(.{ .name = "Crimsonlink", .root_source_file = .{ .path = "src/main.zig" }, .optimize = optimize, .target = target });
 
     rl.link(b, exe, target, optimize);
     exe.addModule("raylib", raylib);
