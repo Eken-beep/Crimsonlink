@@ -40,10 +40,10 @@ pub fn main() anyerror!void {
     var scaling: f32 = 1;
 
     var player = player_structure{};
-    _ = player;
     var world_player: ?*World.CollisionItem = null;
 
     while (!rl.windowShouldClose()) {
+        player.attack_timeout += rl.getFrameTime();
         if (rl.isWindowResized()) {
             current_width = rl.getRenderWidth();
             current_height = rl.getRenderHeight();
@@ -64,6 +64,9 @@ pub fn main() anyerror!void {
         switch (state) {
             .Level => {
                 if (world_player) |p| CurrentWorld.moveItem(p, Input.updateMovements(300 * rl.getFrameTime()));
+                CurrentWorld.stepVelocities();
+                const mouse = @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() };
+                if (rl.isKeyDown(rl.KeyboardKey.key_enter) and player.attack_timeout > 0.05) try player.shoot(&CurrentWorld, &world_player, mouse);
 
                 const world_border = @Vector(2, i32){ scaler(scaling, CurrentWorld.width), scaler(scaling, CurrentWorld.height) };
                 const origin = blk: {
@@ -81,6 +84,15 @@ pub fn main() anyerror!void {
                         const width_offset: f32 = @floatFromInt(@divTrunc(img.width, 2));
                         const pos = rl.Vector2.init((scaling * i.pos[0] + ox) - width_offset, (scaling * i.pos[1] + oy) - height_offset);
                         rl.drawTextureEx(img.*, pos, 0, scaling, color.white);
+                    } else {
+                        const x: i32 = @intFromFloat(i.pos[0]);
+                        const y: i32 = @intFromFloat(i.pos[1]);
+                        switch (i.type) {
+                            .Bullet => {
+                                rl.drawCircle(x, y, i.hitbox.radius, color.sky_blue);
+                            },
+                            else => break,
+                        }
                     }
                 }
             },
@@ -97,7 +109,7 @@ pub fn main() anyerror!void {
                 if (rl.isKeyDown(rl.KeyboardKey.key_space)) {
                     state = .Level;
                     CurrentWorld = try Statemanager.loadLevel(1, gpa, images[0..]);
-                    world_player = try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[0], &world_player);
+                    world_player = try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[0], &world_player, @Vector(2, f32){ 0, 0 });
                 }
             },
         }

@@ -3,11 +3,11 @@ const rl = @import("raylib");
 const Textures = @import("Textures.zig");
 const Self = @This();
 
-pub const CollisionType = union(enum) { Player, Bullet, Enemy, Wall };
+pub const CollisionType = enum { Player, Bullet, Enemy, Wall };
 
 pub const Hitbox = union(enum) { radius: f32, rectangle: @Vector(2, f32) };
 
-pub const CollisionItem = struct { type: CollisionType, pos: @Vector(2, f32), hitbox: Hitbox, image: ?*rl.Texture2D };
+pub const CollisionItem = struct { type: CollisionType, pos: @Vector(2, f32), hitbox: Hitbox, image: ?*rl.Texture2D, velocity: @Vector(2, f32) };
 
 allocator: std.mem.Allocator,
 items: std.ArrayList(CollisionItem),
@@ -37,9 +37,9 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.textures);
 }
 
-pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: *rl.Texture2D, player: *?*CollisionItem) !*CollisionItem {
+pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, player: *?*CollisionItem, velocity: @Vector(2, f32)) !*CollisionItem {
     const p: *CollisionItem = try self.items.addOne();
-    p.* = CollisionItem{ .type = ctype, .pos = @Vector(2, f32){ x, y }, .hitbox = hitbox, .image = image };
+    p.* = CollisionItem{ .type = ctype, .pos = @Vector(2, f32){ x, y }, .hitbox = hitbox, .image = image, .velocity = velocity };
     if (ctype != CollisionType.Player) player.* = getPlayer(self);
     return p;
 }
@@ -59,6 +59,14 @@ pub fn moveItem(self: *Self, i: *Self.CollisionItem, to: @Vector(2, f32)) void {
     if (goal[0] + hitbox[0] > fw) goal[0] = fw - hitbox[0] else if (goal[0] - hitbox[0] < 0) goal[0] = hitbox[0];
     if (goal[1] + hitbox[1] > fh) goal[1] = fh - hitbox[0] else if (goal[1] - hitbox[0] < 0) goal[1] = hitbox[0];
     i.pos = goal;
+}
+
+pub fn stepVelocities(self: *Self) void {
+    for (self.items.items, 0..) |item, i| {
+        const dt: f32 = rl.getFrameTime();
+        const v = @Vector(2, f32){ item.velocity[0] * dt, item.velocity[1] * dt };
+        self.items.items[i].pos += v;
+    }
 }
 
 // Private definitions
