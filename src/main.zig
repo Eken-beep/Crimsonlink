@@ -75,9 +75,11 @@ pub fn main() anyerror!void {
                     break :blk @Vector(2, i32){ @divTrunc(rw - world_border[0], 2), @divTrunc(rh - world_border[1], 2) };
                 };
 
-                rl.drawRectangle(origin[0], origin[1], world_border[0], world_border[1], color.white);
                 const ox: f32 = @floatFromInt(origin[0]);
                 const oy: f32 = @floatFromInt(origin[1]);
+
+                const map_pos = rl.Vector2.init(ox, oy);
+                rl.drawTextureEx(CurrentWorld.textures[0], map_pos, 0, scaling, color.white);
                 for (CurrentWorld.items.items) |i| {
                     if (i.image) |img| {
                         const height_offset: f32 = @floatFromInt(@divTrunc(img.height, 2));
@@ -109,7 +111,7 @@ pub fn main() anyerror!void {
                 if (rl.isKeyDown(rl.KeyboardKey.key_space)) {
                     state = .Level;
                     CurrentWorld = try Statemanager.loadLevel(1, gpa, images[0..]);
-                    world_player = try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[0], &world_player, @Vector(2, f32){ 0, 0 });
+                    world_player = try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[1], &world_player, @Vector(2, f32){ 0, 0 });
                 }
             },
         }

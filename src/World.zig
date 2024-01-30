@@ -16,7 +16,7 @@ width: u16,
 height: u16,
 
 pub fn init(alloc: std.mem.Allocator, width: u16, height: u16, images: []rl.Image) !Self {
-    var t = try alloc.alloc(rl.Texture2D, 1);
+    var t = try alloc.alloc(rl.Texture2D, Textures.all_images.len);
     for (0..Textures.all_images.len) |i| {
         t[i] = rl.loadTextureFromImage(images[i]);
     }
