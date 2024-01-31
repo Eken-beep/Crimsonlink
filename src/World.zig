@@ -37,11 +37,8 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.textures);
 }
 
-pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, player: *?*CollisionItem, velocity: @Vector(2, f32)) !*CollisionItem {
-    const p: *CollisionItem = try self.items.addOne();
-    p.* = CollisionItem{ .type = ctype, .pos = @Vector(2, f32){ x, y }, .hitbox = hitbox, .image = image, .velocity = velocity };
-    if (ctype != CollisionType.Player) player.* = getPlayer(self);
-    return p;
+pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, velocity: @Vector(2, f32)) !void {
+    try self.items.append(CollisionItem{ .type = ctype, .pos = @Vector(2, f32){ x, y }, .hitbox = hitbox, .image = image, .velocity = velocity });
 }
 
 pub fn moveItem(self: *Self, i: *Self.CollisionItem, to: @Vector(2, f32)) void {
@@ -62,10 +59,20 @@ pub fn moveItem(self: *Self, i: *Self.CollisionItem, to: @Vector(2, f32)) void {
 }
 
 pub fn stepVelocities(self: *Self) void {
-    for (self.items.items, 0..) |item, i| {
-        const dt: f32 = rl.getFrameTime();
-        const v = @Vector(2, f32){ item.velocity[0] * dt, item.velocity[1] * dt };
-        self.items.items[i].pos += v;
+    const world_width: f32 = @floatFromInt(self.width);
+    const world_height: f32 = @floatFromInt(self.height);
+    var len: usize = self.items.items.len;
+    var i: usize = 0;
+    while (i < len) : (i += 1) {
+        const item = self.items.items[i];
+        if (item.pos[0] > world_width or item.pos[0] < 0 or item.pos[1] > world_height or item.pos[1] < 0) {
+            _ = self.items.orderedRemove(i);
+            len -= 1;
+        } else {
+            const dt: f32 = rl.getFrameTime();
+            const v = @Vector(2, f32){ item.velocity[0] * dt, item.velocity[1] * dt };
+            self.items.items[i].pos += v;
+        }
     }
 }
 

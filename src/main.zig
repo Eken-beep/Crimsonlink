@@ -40,7 +40,6 @@ pub fn main() anyerror!void {
     var scaling: f32 = 1;
 
     var player = player_structure{};
-    var world_player: ?*World.CollisionItem = null;
 
     while (!rl.windowShouldClose()) {
         player.attack_timeout += rl.getFrameTime();
@@ -63,11 +62,6 @@ pub fn main() anyerror!void {
         // Only the drawing and variable updating part has to be different inbetween gamestates
         switch (state) {
             .Level => {
-                if (world_player) |p| CurrentWorld.moveItem(p, Input.updateMovements(300 * rl.getFrameTime()));
-                CurrentWorld.stepVelocities();
-                const mouse = @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() };
-                if (rl.isKeyDown(rl.KeyboardKey.key_enter) and player.attack_timeout > 0.05) try player.shoot(&CurrentWorld, &world_player, mouse);
-
                 const world_border = @Vector(2, i32){ scaler(scaling, CurrentWorld.width), scaler(scaling, CurrentWorld.height) };
                 const origin = blk: {
                     const rw = rl.getRenderWidth();
@@ -75,11 +69,18 @@ pub fn main() anyerror!void {
                     break :blk @Vector(2, i32){ @divTrunc(rw - world_border[0], 2), @divTrunc(rh - world_border[1], 2) };
                 };
 
+                CurrentWorld.moveItem(&CurrentWorld.items.items[0], Input.updateMovements(300 * rl.getFrameTime()));
+                CurrentWorld.stepVelocities();
+                const mouse = scaleMouse(scaling, @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() }, origin);
+                if (rl.isKeyDown(rl.KeyboardKey.key_enter) and player.attack_timeout > 0.05) try player.shoot(&CurrentWorld, &CurrentWorld.items.items[0], mouse);
+
                 const ox: f32 = @floatFromInt(origin[0]);
                 const oy: f32 = @floatFromInt(origin[1]);
 
                 const map_pos = rl.Vector2.init(ox, oy);
+                // drawing the map itself
                 rl.drawTextureEx(CurrentWorld.textures[0], map_pos, 0, scaling, color.white);
+                // drawing loop for items in the world
                 for (CurrentWorld.items.items) |i| {
                     if (i.image) |img| {
                         const height_offset: f32 = @floatFromInt(@divTrunc(img.height, 2));
@@ -91,7 +92,7 @@ pub fn main() anyerror!void {
                         const y: i32 = @intFromFloat(i.pos[1]);
                         switch (i.type) {
                             .Bullet => {
-                                rl.drawCircle(x, y, i.hitbox.radius, color.sky_blue);
+                                rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.hitbox.radius, color.sky_blue);
                             },
                             else => break,
                         }
@@ -111,7 +112,7 @@ pub fn main() anyerror!void {
                 if (rl.isKeyDown(rl.KeyboardKey.key_space)) {
                     state = .Level;
                     CurrentWorld = try Statemanager.loadLevel(1, gpa, images[0..]);
-                    world_player = try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[1], &world_player, @Vector(2, f32){ 0, 0 });
+                    try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[1], @Vector(2, f32){ 0, 0 });
                 }
             },
         }
@@ -119,8 +120,18 @@ pub fn main() anyerror!void {
     }
 }
 
+// all these casts suck but whatever, textures and geometric shapes render with both floats and ints
 fn scaler(scale: f32, x: i32) i32 {
     const fx: f32 = @floatFromInt(x);
     const r: i32 = @intFromFloat(scale * fx);
     return r;
+}
+
+fn scaleMouse(scale: f32, m: @Vector(2, i32), origin: @Vector(2, i32)) @Vector(2, i32) {
+    const mx: f32 = @floatFromInt(m[0] - origin[0]);
+    const my: f32 = @floatFromInt(m[1] - origin[1]);
+
+    const mx_i: i32 = @intFromFloat(@divTrunc(mx, scale));
+    const my_i: i32 = @intFromFloat(@divTrunc(my, scale));
+    return @Vector(2, i32){ mx_i, my_i };
 }
