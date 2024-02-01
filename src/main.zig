@@ -13,7 +13,6 @@ const preferred_width = 1600;
 const preferred_height = 900;
 
 // TODO
-// Being able to shoot bullets
 // Do something with the player data struct
 // Spawn bullets that hurt the player
 //
@@ -39,6 +38,7 @@ pub fn main() anyerror!void {
     var current_height: i32 = preferred_height;
     var scaling: f32 = 1;
 
+    // This is the part of the player we want to save inbetween rooms
     var player = player_structure{};
 
     while (!rl.windowShouldClose()) {
@@ -71,6 +71,9 @@ pub fn main() anyerror!void {
 
                 CurrentWorld.moveItem(&CurrentWorld.items.items[0], Input.updateMovements(300 * rl.getFrameTime()));
                 CurrentWorld.stepVelocities();
+                // Here we account for wierd window sizes when doing math on the mouse position
+                // as the world is always a set size the mouse position has to be scaled down as much as
+                // the set world size has been upscaled, as well as accounting for drawing origins when world and window ratio doesn't match
                 const mouse = scaleMouse(scaling, @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() }, origin);
                 if (rl.isKeyDown(rl.KeyboardKey.key_enter) and player.attack_timeout > 0.05) try player.shoot(&CurrentWorld, &CurrentWorld.items.items[0], mouse);
 
@@ -82,20 +85,19 @@ pub fn main() anyerror!void {
                 rl.drawTextureEx(CurrentWorld.textures[0], map_pos, 0, scaling, color.white);
                 // drawing loop for items in the world
                 for (CurrentWorld.items.items) |i| {
-                    if (i.image) |img| {
-                        const height_offset: f32 = @floatFromInt(@divTrunc(img.height, 2));
-                        const width_offset: f32 = @floatFromInt(@divTrunc(img.width, 2));
-                        const pos = rl.Vector2.init((scaling * i.pos[0] + ox) - width_offset, (scaling * i.pos[1] + oy) - height_offset);
-                        rl.drawTextureEx(img.*, pos, 0, scaling, color.white);
-                    } else {
-                        const x: i32 = @intFromFloat(i.pos[0]);
-                        const y: i32 = @intFromFloat(i.pos[1]);
-                        switch (i.type) {
-                            .Bullet => {
-                                rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.hitbox.radius, color.sky_blue);
-                            },
-                            else => break,
-                        }
+                    switch (i.meta) {
+                        .player => |p| {
+                            const height_offset: f32 = @floatFromInt(@divTrunc(p.sprite.height, 2));
+                            const width_offset: f32 = @floatFromInt(@divTrunc(p.sprite.width, 2));
+                            const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
+                            rl.drawTextureEx(p.sprite.*, pos, 0, scaling, color.white);
+                        },
+                        .bullet => {
+                            const x: i32 = @intFromFloat(i.c.pos[0]);
+                            const y: i32 = @intFromFloat(i.c.pos[1]);
+                            rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.c.hitbox.radius, i.meta.bullet.color);
+                        },
+                        else => continue,
                     }
                 }
             },
