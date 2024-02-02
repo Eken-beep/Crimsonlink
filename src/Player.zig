@@ -5,8 +5,8 @@ const Self = @This();
 
 const PlayerError = error{ OutOfMemory, PlayerNotFound };
 // Public declarations //
-hp: i16 = 100,
-max_hp: i16 = 100,
+hp: u8 = 100,
+max_hp: u8 = 100,
 level: u8 = 0,
 attack_timeout: f32 = 0,
 

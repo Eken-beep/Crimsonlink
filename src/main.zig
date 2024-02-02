@@ -70,7 +70,7 @@ pub fn main() anyerror!void {
                 };
 
                 CurrentWorld.moveItem(&CurrentWorld.items.items[0], Input.updateMovements(300 * rl.getFrameTime()));
-                CurrentWorld.stepVelocities();
+                CurrentWorld.stepMovement();
                 // Here we account for wierd window sizes when doing math on the mouse position
                 // as the world is always a set size the mouse position has to be scaled down as much as
                 // the set world size has been upscaled, as well as accounting for drawing origins when world and window ratio doesn't match
@@ -92,12 +92,17 @@ pub fn main() anyerror!void {
                             const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
                             rl.drawTextureEx(p.sprite.*, pos, 0, scaling, color.white);
                         },
+                        .enemy => |e| {
+                            const height_offset: f32 = @floatFromInt(@divTrunc(e.sprite.height, 2));
+                            const width_offset: f32 = @floatFromInt(@divTrunc(e.sprite.width, 2));
+                            const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
+                            rl.drawTextureEx(e.sprite.*, pos, 0, scaling, color.white);
+                        },
                         .bullet => {
                             const x: i32 = @intFromFloat(i.c.pos[0]);
                             const y: i32 = @intFromFloat(i.c.pos[1]);
                             rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.c.hitbox.radius, i.meta.bullet.color);
                         },
-                        else => continue,
                     }
                 }
             },
@@ -115,6 +120,7 @@ pub fn main() anyerror!void {
                     state = .Level;
                     CurrentWorld = try Statemanager.loadLevel(1, gpa, images[0..]);
                     try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[1], @Vector(2, f32){ 0, 0 });
+                    try CurrentWorld.addItem(World.CollisionType.Enemy, 1400, 400, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[2], @Vector(2, f32){ 0, 0 });
                 }
             },
         }

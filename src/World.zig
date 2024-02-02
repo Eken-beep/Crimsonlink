@@ -36,9 +36,12 @@ const Player = struct {
 const Bullet = struct {
     color: rl.Color,
     velocity: @Vector(2, f32),
+    damage: u8,
 };
 const Enemy = struct {
     sprite: *rl.Texture2D,
+    // why is this even a u8
+    hp: u8,
 };
 
 allocator: std.mem.Allocator,
@@ -71,9 +74,10 @@ pub fn deinit(self: *Self) void {
 
 pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, velocity: @Vector(2, f32)) !void {
     const meta: ObjectMetadata = switch (ctype) {
-        .Bullet => ObjectMetadata{ .bullet = Bullet{ .color = rl.Color.magenta, .velocity = velocity } },
+        .Bullet => ObjectMetadata{ .bullet = Bullet{ .color = rl.Color.magenta, .velocity = velocity, .damage = 10 } },
         // TODO actually return an error if an image is needed
         .Player => ObjectMetadata{ .player = Player{ .sprite = if (image) |img| img else return } },
+        .Enemy => ObjectMetadata{ .enemy = Enemy{ .sprite = if (image) |img| img else return, .hp = 100 } },
         else => return,
     };
     try self.items.append(WorldObject{ .c = Collider{ .pos = @Vector(2, f32){ x, y }, .hitbox = hitbox }, .meta = meta });
@@ -96,7 +100,7 @@ pub fn moveItem(self: *Self, i: *Self.WorldObject, to: @Vector(2, f32)) void {
     i.c.pos = goal;
 }
 
-pub fn stepVelocities(self: *Self) void {
+pub fn stepMovement(self: *Self) void {
     const world_width: f32 = @floatFromInt(self.width);
     const world_height: f32 = @floatFromInt(self.height);
     var len: usize = self.items.items.len;
@@ -104,6 +108,7 @@ pub fn stepVelocities(self: *Self) void {
     // This is a while loop because if an item is being removed we get an oob error with the array when using a for loop
     while (i < len) : (i += 1) {
         const item = self.items.items[i];
+        // If we want to update some other thing later on
         switch (item.meta) {
             .bullet => {
                 if (item.c.pos[0] > world_width or item.c.pos[0] < 0 or item.c.pos[1] > world_height or item.c.pos[1] < 0) {
@@ -113,6 +118,24 @@ pub fn stepVelocities(self: *Self) void {
                     const dt: f32 = rl.getFrameTime();
                     const v = @Vector(2, f32){ item.meta.bullet.velocity[0] * dt, item.meta.bullet.velocity[1] * dt };
                     self.items.items[i].c.pos += v;
+                    for (self.items.items, 0..) |collision_compare, j| {
+                        if (collision_compare.meta == .enemy) {
+                            const dx: f32 = collision_compare.c.pos[0] - item.c.pos[0];
+                            const dy: f32 = collision_compare.c.pos[1] - item.c.pos[1];
+                            if (@sqrt(dx * dx - dy * dy) < collision_compare.c.hitbox.radius + item.c.hitbox.radius) {
+                                self.items.items[j].meta.enemy.hp = blk: {
+                                    if (item.meta.bullet.damage > collision_compare.meta.enemy.hp) {
+                                        std.debug.print("enemy down!! {d}", .{item.meta.bullet.damage});
+                                        break :blk 0;
+                                    } else break :blk collision_compare.meta.enemy.hp - item.meta.bullet.damage;
+                                    std.debug.print("{d}", .{item.meta.bullet.damage});
+                                };
+                                // Killing the bullet if we hit something
+                                _ = self.items.orderedRemove(i);
+                                len -= 1;
+                            }
+                        }
+                    }
                 }
             },
             else => continue,
