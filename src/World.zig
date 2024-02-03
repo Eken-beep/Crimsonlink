@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 const Textures = @import("Textures.zig");
+const EnemyHandler = @import("Enemy.zig");
 const Self = @This();
 
 // The world stores all things that are temporary and resets when the room does
@@ -104,7 +105,7 @@ pub fn stepMovement(self: *Self) void {
     const world_height: f32 = @floatFromInt(self.height);
     var len: usize = self.items.items.len;
     var i: usize = 0;
-    // This is a while loop because if an item is being removed we get an oob error with the array when using a for loop
+    // This has to be a while loop because if an item is being removed we get an oob error with the array when using a for loop
     while (i < len) : (i += 1) {
         const item = self.items.items[i];
         // If we want to update some other thing later on
@@ -124,7 +125,7 @@ pub fn stepMovement(self: *Self) void {
                             if (@sqrt(dx * dx - dy * dy) < collision_compare.c.hitbox.radius + item.c.hitbox.radius) {
                                 self.items.items[j].meta.enemy.hp = blk: {
                                     if (item.meta.bullet.damage > collision_compare.meta.enemy.hp) {
-                                        std.debug.print("enemy down!! {d}", .{item.meta.bullet.damage});
+                                        std.debug.print("enemy down!! {d}\n", .{item.meta.bullet.damage});
                                         break :blk 0;
                                     } else break :blk collision_compare.meta.enemy.hp - item.meta.bullet.damage;
                                     std.debug.print("{d}", .{item.meta.bullet.damage});
@@ -136,6 +137,9 @@ pub fn stepMovement(self: *Self) void {
                         }
                     }
                 }
+            },
+            .enemy => {
+                self.items.items[i] = EnemyHandler.updateEnemy(item, self.items.items[0]);
             },
             else => continue,
         }

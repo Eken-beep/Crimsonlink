@@ -23,12 +23,14 @@ pub fn main() anyerror!void {
     rl.initWindow(preferred_width, preferred_height, "~Crimsonlink~");
     defer rl.closeWindow();
 
+    // This allocator is for everything other than the currently active level and it's associated data
     var general_purpouse_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpouse_allocator.allocator();
 
     var images: []rl.Image = try Textures.loadImages(gpa, Textures.all_images);
     defer gpa.free(images);
 
+    // Keep the main level allocator inside of the state
     var state = Statemanager{ .state = Statemanager.State.Menu, .arena_allocator = std.heap.ArenaAllocator.init(gpa) };
 
     var CurrentWorld: ?World = null;
@@ -65,7 +67,7 @@ pub fn main() anyerror!void {
         switch (state.state) {
             .Level => {
                 if (CurrentWorld) |*w| {
-                    // Temporary to reload the room
+                    // Temporary to reload the room on demand
                     if (tmp_timer > 1 and rl.isKeyDown(rl.KeyboardKey.key_r)) {
                         tmp_timer = 0;
                         CurrentWorld = try state.loadLevel(&CurrentWorld, 1, images[0..]);
@@ -78,6 +80,7 @@ pub fn main() anyerror!void {
                     };
 
                     w.moveItem(&w.*.items.items[0], Input.updateMovements(300 * rl.getFrameTime()));
+                    // Update the position of everything other than the player
                     w.stepMovement();
                     // Here we account for wierd window sizes when doing math on the mouse position
                     // as the world is always a set size the mouse position has to be scaled down as much as
