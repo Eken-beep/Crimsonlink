@@ -50,14 +50,14 @@ textures: []rl.Texture2D,
 width: u16,
 height: u16,
 
-pub fn init(alloc: std.mem.Allocator, width: u16, height: u16, images: []rl.Image) !Self {
-    var t = try alloc.alloc(rl.Texture2D, Textures.all_images.len);
+pub fn init(allocator: std.mem.Allocator, width: u16, height: u16, images: []rl.Image) !Self {
+    var t = try allocator.alloc(rl.Texture2D, Textures.all_images.len);
     for (0..Textures.all_images.len) |i| {
         t[i] = rl.loadTextureFromImage(images[i]);
     }
     return Self{
-        .allocator = alloc,
-        .items = std.ArrayList(WorldObject).init(alloc),
+        .allocator = allocator,
+        .items = std.ArrayList(WorldObject).init(allocator),
         .textures = t,
         .width = width,
         .height = height,
@@ -69,7 +69,6 @@ pub fn deinit(self: *Self) void {
     for (0..Textures.all_images.len) |i| {
         rl.unloadTexture(self.textures[i]);
     }
-    self.allocator.free(self.textures);
 }
 
 pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, velocity: @Vector(2, f32)) !void {

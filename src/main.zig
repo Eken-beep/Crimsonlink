@@ -29,9 +29,9 @@ pub fn main() anyerror!void {
     var images: []rl.Image = try Textures.loadImages(gpa, Textures.all_images);
     defer gpa.free(images);
 
-    var state: Statemanager.State = .Menu;
+    var state = Statemanager{ .state = Statemanager.State.Menu, .arena_allocator = std.heap.ArenaAllocator.init(gpa) };
 
-    var CurrentWorld: World = undefined;
+    var CurrentWorld: ?World = null;
 
     // our starting variables
     var current_width: i32 = preferred_width;
@@ -40,9 +40,11 @@ pub fn main() anyerror!void {
 
     // This is the part of the player we want to save inbetween rooms
     var player = player_structure{};
+    var tmp_timer: f32 = 0;
 
     while (!rl.windowShouldClose()) {
         player.attack_timeout += rl.getFrameTime();
+        tmp_timer += rl.getFrameTime();
         if (rl.isWindowResized()) {
             current_width = rl.getRenderWidth();
             current_height = rl.getRenderHeight();
@@ -60,49 +62,56 @@ pub fn main() anyerror!void {
         defer rl.endDrawing();
 
         // Only the drawing and variable updating part has to be different inbetween gamestates
-        switch (state) {
+        switch (state.state) {
             .Level => {
-                const world_border = @Vector(2, i32){ scaler(scaling, CurrentWorld.width), scaler(scaling, CurrentWorld.height) };
-                const origin = blk: {
-                    const rw = rl.getRenderWidth();
-                    const rh = rl.getRenderHeight();
-                    break :blk @Vector(2, i32){ @divTrunc(rw - world_border[0], 2), @divTrunc(rh - world_border[1], 2) };
-                };
+                if (CurrentWorld) |*w| {
+                    // Temporary to reload the room
+                    if (tmp_timer > 1 and rl.isKeyDown(rl.KeyboardKey.key_r)) {
+                        tmp_timer = 0;
+                        CurrentWorld = try state.loadLevel(&CurrentWorld, 1, images[0..]);
+                    }
+                    const world_border = @Vector(2, i32){ scaler(scaling, w.width), scaler(scaling, w.height) };
+                    const origin = blk: {
+                        const rw = rl.getRenderWidth();
+                        const rh = rl.getRenderHeight();
+                        break :blk @Vector(2, i32){ @divTrunc(rw - world_border[0], 2), @divTrunc(rh - world_border[1], 2) };
+                    };
 
-                CurrentWorld.moveItem(&CurrentWorld.items.items[0], Input.updateMovements(300 * rl.getFrameTime()));
-                CurrentWorld.stepMovement();
-                // Here we account for wierd window sizes when doing math on the mouse position
-                // as the world is always a set size the mouse position has to be scaled down as much as
-                // the set world size has been upscaled, as well as accounting for drawing origins when world and window ratio doesn't match
-                const mouse = scaleMouse(scaling, @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() }, origin);
-                if (rl.isKeyDown(rl.KeyboardKey.key_enter) and player.attack_timeout > 0.05) try player.shoot(&CurrentWorld, &CurrentWorld.items.items[0], mouse);
+                    w.moveItem(&w.*.items.items[0], Input.updateMovements(300 * rl.getFrameTime()));
+                    w.stepMovement();
+                    // Here we account for wierd window sizes when doing math on the mouse position
+                    // as the world is always a set size the mouse position has to be scaled down as much as
+                    // the set world size has been upscaled, as well as accounting for drawing origins when world and window ratio doesn't match
+                    const mouse = scaleMouse(scaling, @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() }, origin);
+                    if (rl.isKeyDown(rl.KeyboardKey.key_enter) and player.attack_timeout > 0.05) try player.shoot(w, &w.*.items.items[0], mouse);
 
-                const ox: f32 = @floatFromInt(origin[0]);
-                const oy: f32 = @floatFromInt(origin[1]);
+                    const ox: f32 = @floatFromInt(origin[0]);
+                    const oy: f32 = @floatFromInt(origin[1]);
 
-                const map_pos = rl.Vector2.init(ox, oy);
-                // drawing the map itself
-                rl.drawTextureEx(CurrentWorld.textures[0], map_pos, 0, scaling, color.white);
-                // drawing loop for items in the world
-                for (CurrentWorld.items.items) |i| {
-                    switch (i.meta) {
-                        .player => |p| {
-                            const height_offset: f32 = @floatFromInt(@divTrunc(p.sprite.height, 2));
-                            const width_offset: f32 = @floatFromInt(@divTrunc(p.sprite.width, 2));
-                            const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
-                            rl.drawTextureEx(p.sprite.*, pos, 0, scaling, color.white);
-                        },
-                        .enemy => |e| {
-                            const height_offset: f32 = @floatFromInt(@divTrunc(e.sprite.height, 2));
-                            const width_offset: f32 = @floatFromInt(@divTrunc(e.sprite.width, 2));
-                            const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
-                            rl.drawTextureEx(e.sprite.*, pos, 0, scaling, color.white);
-                        },
-                        .bullet => {
-                            const x: i32 = @intFromFloat(i.c.pos[0]);
-                            const y: i32 = @intFromFloat(i.c.pos[1]);
-                            rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.c.hitbox.radius, i.meta.bullet.color);
-                        },
+                    const map_pos = rl.Vector2.init(ox, oy);
+                    // drawing the map itself
+                    rl.drawTextureEx(w.textures[0], map_pos, 0, scaling, color.white);
+                    // drawing loop for items in the world
+                    for (w.items.items) |i| {
+                        switch (i.meta) {
+                            .player => |p| {
+                                const height_offset: f32 = @floatFromInt(@divTrunc(p.sprite.height, 2));
+                                const width_offset: f32 = @floatFromInt(@divTrunc(p.sprite.width, 2));
+                                const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
+                                rl.drawTextureEx(p.sprite.*, pos, 0, scaling, color.white);
+                            },
+                            .enemy => |e| {
+                                const height_offset: f32 = @floatFromInt(@divTrunc(e.sprite.height, 2));
+                                const width_offset: f32 = @floatFromInt(@divTrunc(e.sprite.width, 2));
+                                const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
+                                rl.drawTextureEx(e.sprite.*, pos, 0, scaling, color.white);
+                            },
+                            .bullet => {
+                                const x: i32 = @intFromFloat(i.c.pos[0]);
+                                const y: i32 = @intFromFloat(i.c.pos[1]);
+                                rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.c.hitbox.radius, i.meta.bullet.color);
+                            },
+                        }
                     }
                 }
             },
@@ -117,10 +126,8 @@ pub fn main() anyerror!void {
                 rl.drawRectangle(origin[0], origin[1], world_border[0], world_border[1], color.white);
                 rl.drawText("Press space to start!", preferred_width / 2, preferred_height / 2, 20, color.dark_gray);
                 if (rl.isKeyDown(rl.KeyboardKey.key_space)) {
-                    state = .Level;
-                    CurrentWorld = try Statemanager.loadLevel(1, gpa, images[0..]);
-                    try CurrentWorld.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[1], @Vector(2, f32){ 0, 0 });
-                    try CurrentWorld.addItem(World.CollisionType.Enemy, 1400, 400, World.Hitbox{ .radius = 5 }, &CurrentWorld.textures[2], @Vector(2, f32){ 0, 0 });
+                    state.state = .Level;
+                    CurrentWorld = try state.loadLevel(&CurrentWorld, 1, images[0..]);
                 }
             },
         }
