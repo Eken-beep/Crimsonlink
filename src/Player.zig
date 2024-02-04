@@ -29,5 +29,5 @@ pub fn shoot(self: *Self, world: *World, player: *World.WorldObject, mouse: @Vec
     const vx: f32 = @cos(angle) * -500;
     const vy: f32 = @sin(angle) * -500;
     std.debug.print("Spawned bullet with velocity, x:{d}, y:{d}\n", .{ vx, vy });
-    try world.addItem(World.CollisionType.Bullet, player.c.pos[0], player.c.pos[1], World.Hitbox{ .radius = 20 }, null, @Vector(2, f32){ vx, vy });
+    try world.addItem(World.CollisionType.Bullet, player.c.pos[0], player.c.pos[1], World.Hitbox{ .radius = 20 }, null, null, @Vector(2, f32){ vx, vy });
 }

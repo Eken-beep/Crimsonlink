@@ -32,7 +32,7 @@ pub const ObjectMetadata = union(enum) {
 };
 
 const Player = struct {
-    sprite: *rl.Texture2D,
+    sprite: *Textures.Animation(u2),
 };
 const Bullet = struct {
     color: rl.Color,
@@ -72,11 +72,16 @@ pub fn deinit(self: *Self) void {
     }
 }
 
-pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, velocity: @Vector(2, f32)) !void {
-    const meta: ObjectMetadata = switch (ctype) {
+pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, animation: ?[]rl.Texture2D, velocity: @Vector(2, f32)) !void {
+    var meta: ObjectMetadata = switch (ctype) {
         .Bullet => ObjectMetadata{ .bullet = Bullet{ .color = rl.Color.magenta, .velocity = velocity, .damage = 10 } },
         // TODO actually return an error if an image is needed
-        .Player => ObjectMetadata{ .player = Player{ .sprite = if (image) |img| img else return } },
+        .Player => blk: {
+            // This was for some reason const if not allocated separately on the heap, idk why but this however works
+            var sprite = try self.allocator.create(Textures.Animation(u2));
+            sprite.* = Textures.Animation(u2).init(0.3, if (animation) |a| a else return);
+            break :blk ObjectMetadata{ .player = Player{ .sprite = sprite } };
+        },
         .Enemy => ObjectMetadata{ .enemy = Enemy{ .sprite = if (image) |img| img else return, .hp = 100 } },
         else => return,
     };

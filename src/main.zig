@@ -98,10 +98,10 @@ pub fn main() anyerror!void {
                     for (w.items.items) |i| {
                         switch (i.meta) {
                             .player => |p| {
-                                const height_offset: f32 = @floatFromInt(@divTrunc(p.sprite.height, 2));
-                                const width_offset: f32 = @floatFromInt(@divTrunc(p.sprite.width, 2));
+                                const height_offset: f32 = @floatFromInt(@divTrunc(p.sprite.frames[0].height, 2));
+                                const width_offset: f32 = @floatFromInt(@divTrunc(p.sprite.frames[0].width, 2));
                                 const pos = rl.Vector2.init((scaling * i.c.pos[0] + ox) - width_offset, (scaling * i.c.pos[1] + oy) - height_offset);
-                                rl.drawTextureEx(p.sprite.*, pos, 0, scaling, color.white);
+                                rl.drawTextureEx(p.sprite.step(rl.getFrameTime()).*, pos, 0, scaling, color.white);
                             },
                             .enemy => |e| {
                                 const height_offset: f32 = @floatFromInt(@divTrunc(e.sprite.height, 2));
@@ -112,7 +112,7 @@ pub fn main() anyerror!void {
                             .bullet => {
                                 const x: i32 = @intFromFloat(i.c.pos[0]);
                                 const y: i32 = @intFromFloat(i.c.pos[1]);
-                                rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.c.hitbox.radius, i.meta.bullet.color);
+                                rl.drawCircle(origin[0] + scaler(scaling, x), origin[1] + scaler(scaling, y), i.c.hitbox.radius * scaling, i.meta.bullet.color);
                             },
                         }
                     }

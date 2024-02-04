@@ -27,8 +27,8 @@ pub fn loadLevel(self: *Self, world: *?World, level: u8, images: []rl.Image) Lev
         1 => {
             var w: World = try World.init(allocator, 1600, 900, images);
             // We add this before the world processes another frame to avoid having to pause the rest of the game when the player doesn't exist yet
-            try w.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, &w.textures[1], @Vector(2, f32){ 0, 0 });
-            try w.addItem(World.CollisionType.Enemy, 1400, 400, World.Hitbox{ .radius = 5 }, &w.textures[2], @Vector(2, f32){ 0, 0 });
+            try w.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, null, w.textures[1..5], @Vector(2, f32){ 0, 0 });
+            try w.addItem(World.CollisionType.Enemy, 1400, 400, World.Hitbox{ .radius = 5 }, &w.textures[6], null, @Vector(2, f32){ 0, 0 });
             return w;
         },
         else => return LevelLoadError.LevelNotFound,
