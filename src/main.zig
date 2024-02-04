@@ -78,8 +78,9 @@ pub fn main() anyerror!void {
                         const rh = rl.getRenderHeight();
                         break :blk @Vector(2, i32){ @divTrunc(rw - world_border[0], 2), @divTrunc(rh - world_border[1], 2) };
                     };
-
-                    w.moveItem(&w.*.items.items[0], Input.updateMovements(300 * rl.getFrameTime()));
+                    const player_move = Input.updateMovements(300 * rl.getFrameTime());
+                    if (player_move[0] != 0 or player_move[1] != 0) w.items.items[0].meta.player.sprite.*.active = true else w.items.items[0].meta.player.sprite.*.active = false;
+                    w.moveItem(&w.*.items.items[0], player_move);
                     // Update the position of everything other than the player
                     w.stepMovement();
                     // Here we account for wierd window sizes when doing math on the mouse position

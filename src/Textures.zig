@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 
+// TODO automate the generation of this abomination
 pub const all_images = [_][:0]const u8{
     "assets/betamap2.png",
     "assets/player/MainCharacter1.png",
@@ -31,6 +32,10 @@ pub fn Animation(comptime T: type) type {
         active: bool,
         pub fn step(self: *_self, dt: f32) *rl.Texture2D {
             self.counter += dt;
+            if (!self.active) {
+                self.frame = 0;
+                return &self.frames[0];
+            }
             if (self.counter > self.frametime) {
                 // Overflow the variable to begin counting at zero again
                 self.frame +%= 1;
