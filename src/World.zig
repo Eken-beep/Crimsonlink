@@ -1,152 +1,142 @@
 const std = @import("std");
 const rl = @import("raylib");
-const Textures = @import("Textures.zig");
-const EnemyHandler = @import("Enemy.zig");
+const Window = @import("Window.zig");
+const Input = @import("Input.zig");
+
 const Self = @This();
 
-// The world stores all things that are temporary and resets when the room does
-// also handles things related to that such as moving items and enemy ai;s
-pub const CollisionType = enum { Player, Bullet, Enemy, Wall };
-
-pub const Hitbox = union(enum) { radius: f32, rectangle: @Vector(2, f32) };
-
-// Definitions for an item in the world looks like:
-// world object:
-//   collider:
-//     hitbox: circle | rectangle
-//     position
-//   meta:
-//     union of bullet or player or enemy
-
-pub const WorldObject = struct { c: Collider, meta: ObjectMetadata };
-
-pub const Collider = struct {
-    pos: @Vector(2, f32),
-    hitbox: Hitbox,
-};
-// While the collider is generic for everything that can be in the world, we have this field for everything else
-pub const ObjectMetadata = union(enum) {
-    player: Player,
-    bullet: Bullet,
-    enemy: Enemy,
+pub const WorldPacket = union(enum) {
+    player,
+    enemy,
+    bullet,
+// What is expected from the different anonymous structs
+//    player: struct {
+//        x: f32,
+//        y: f32,
+//        img: *rl.Texture2D,
+//    },
+//    enemy: struct {
+//        x: f32,
+//        y: f32,
+//        img: *rl.Texture2D,
+//        hp: u8
+//    },
+//    bullet: struct {
+//        x: f32,
+//        y: f32,
+//        vx: f32,
+//        vy: f32,
+//    },
 };
 
-const Player = struct {
-    sprite: *Textures.Animation(u2),
-};
-const Bullet = struct {
-    color: rl.Color,
-    velocity: @Vector(2, f32),
-    damage: u8,
-};
-const Enemy = struct {
-    sprite: *rl.Texture2D,
-    // why is this even a u8
+pub const WorldItem = struct {
+    c: Collider,
+    meta: WorldItemMetadata,
     hp: u8,
 };
 
+pub const Collider = struct {
+    pos: @Vector(2, f32),
+    vel: @Vector(2, f32),
+    hitbox: @Vector(2, f16),
+};
+
+pub const WorldItemMetadata = union(enum) {
+    player: *rl.Texture2D,
+    bullet,
+    enemy: *rl.Texture2D,
+};
+
+// Here the player is expected to be items[0] in all cases
+items: std.ArrayList(WorldItem),
 allocator: std.mem.Allocator,
-items: std.ArrayList(WorldObject),
+dim: @Vector(2, u16),
 textures: []rl.Texture2D,
-width: u16,
-height: u16,
 
-pub fn init(allocator: std.mem.Allocator, width: u16, height: u16, images: []rl.Image) !Self {
-    var t = try allocator.alloc(rl.Texture2D, Textures.all_images.len);
-    for (0..Textures.all_images.len) |i| {
-        t[i] = rl.loadTextureFromImage(images[i]);
-    }
-    return Self{
+pub fn init(dim: @Vector(2, u16), allocator: std.mem.Allocator, images: []rl.Texture2D) !Self {
+    return Self {
+        .items = std.ArrayList(WorldItem).init(allocator),
         .allocator = allocator,
-        .items = std.ArrayList(WorldObject).init(allocator),
-        .textures = t,
-        .width = width,
-        .height = height,
+        .dim = dim,
+        .textures = images,
     };
 }
 
-pub fn deinit(self: *Self) void {
-    self.items.deinit();
-    for (0..Textures.all_images.len) |i| {
-        rl.unloadTexture(self.textures[i]);
-    }
-}
-
-pub fn addItem(self: *Self, ctype: CollisionType, x: f32, y: f32, hitbox: Hitbox, image: ?*rl.Texture2D, animation: ?[]rl.Texture2D, velocity: @Vector(2, f32)) !void {
-    var meta: ObjectMetadata = switch (ctype) {
-        .Bullet => ObjectMetadata{ .bullet = Bullet{ .color = rl.Color.magenta, .velocity = velocity, .damage = 10 } },
-        // TODO actually return an error if an image is needed
-        .Player => blk: {
-            // This was for some reason const if not allocated separately on the heap, idk why but this however works
-            var sprite = try self.allocator.create(Textures.Animation(u2));
-            sprite.* = Textures.Animation(u2).init(0.3, if (animation) |a| a else return);
-            break :blk ObjectMetadata{ .player = Player{ .sprite = sprite } };
+pub fn addItem(self: *Self, item: anytype) !void {
+    switch(item.type) {
+        .player => {
+            try self.items.append(WorldItem{
+                .c = Collider {
+                    .pos = @Vector(2,f32) {item.x, item.y},
+                    .vel = @splat(0),
+                    .hitbox = @splat(50)
+                },
+                .hp = 1,
+                .meta = WorldItemMetadata { .player = item.img },
+            });
         },
-        .Enemy => ObjectMetadata{ .enemy = Enemy{ .sprite = if (image) |img| img else return, .hp = 100 } },
-        else => return,
-    };
-    try self.items.append(WorldObject{ .c = Collider{ .pos = @Vector(2, f32){ x, y }, .hitbox = hitbox }, .meta = meta });
+        .enemy => {
+            try self.items.append(WorldItem{
+                .c = Collider {
+                    .pos = @Vector(2,f32) {item.x, item.y},
+                    .vel = @splat(0),
+                    .hitbox = @splat(50)
+                },
+                .hp = item.hp,
+                .meta = WorldItemMetadata { .enemy = item.img },
+            });
+        },
+        .bullet => {
+            try self.items.append(WorldItem{
+                .c = Collider {
+                    .pos = @Vector(2, f32) {item.x, item.y},
+                    .vel = @Vector(2, f32) {item.vx, item.vy},
+                    .hitbox = @splat(50)
+                },
+                .hp = 1,
+                .meta = WorldItemMetadata { .player = item.img },
+            });
+        },
+    }
 }
 
-pub fn moveItem(self: *Self, i: *Self.WorldObject, to: @Vector(2, f32)) void {
-    var goal = i.c.pos + to;
-    const fw: f32 = @floatFromInt(self.width);
-    const fh: f32 = @floatFromInt(self.height);
-    const hitbox: @Vector(2, f32) = blk: {
-        const hb = i.c.hitbox;
-        switch (hb) {
-            .radius => |r| break :blk @Vector(2, f32){ r, r },
-            .rectangle => |r| break :blk r,
-        }
-    };
-    // we just make sure that the moved item doesn't go out of bounds, other collision handled elsewhere
-    if (goal[0] + hitbox[0] > fw) goal[0] = fw - hitbox[0] else if (goal[0] - hitbox[0] < 0) goal[0] = hitbox[0];
-    if (goal[1] + hitbox[1] > fh) goal[1] = fh - hitbox[0] else if (goal[1] - hitbox[0] < 0) goal[1] = hitbox[0];
-    i.c.pos = goal;
-}
-
-pub fn stepMovement(self: *Self) void {
-    const world_width: f32 = @floatFromInt(self.width);
-    const world_height: f32 = @floatFromInt(self.height);
-    var len: usize = self.items.items.len;
-    var i: usize = 0;
-    // This has to be a while loop because if an item is being removed we get an oob error with the array when using a for loop
-    while (i < len) : (i += 1) {
+pub fn iterate(self: *Self, window: *Window) void {
+    var len = self.items.items.len;
+    var i: u16 = 0;
+    while(len > i) : (i += 1) {
         const item = self.items.items[i];
-        // If we want to update some other thing later on
+        self.items.items[i].c.pos += blk: {
+            const goal = item.c.pos + item.c.vel;
+            var velocity: @Vector(2, f32) = item.c.vel;
+            const world_w: f32 = @floatFromInt(self.dim[0]);
+            const world_h: f32 = @floatFromInt(self.dim[1]);
+
+            if (item.meta == .player) {
+                if (goal[0] < 0 or goal[0] + item.c.hitbox[0] > world_w) velocity[0] = 0;
+                if (goal[1] < 0 or goal[1] + item.c.hitbox[1] > world_h) velocity[1] = 0;
+            } 
+            break :blk velocity;
+        };
         switch (item.meta) {
-            .bullet => {
-                if (item.c.pos[0] > world_width or item.c.pos[0] < 0 or item.c.pos[1] > world_height or item.c.pos[1] < 0) {
-                    _ = self.items.orderedRemove(i);
-                    len -= 1;
-                } else {
-                    const dt: f32 = rl.getFrameTime();
-                    const v = @Vector(2, f32){ item.meta.bullet.velocity[0] * dt, item.meta.bullet.velocity[1] * dt };
-                    self.items.items[i].c.pos += v;
-                    for (self.items.items, 0..) |collision_compare, j| {
-                        if (collision_compare.meta == .enemy) {
-                            const dx: f32 = collision_compare.c.pos[0] - item.c.pos[0];
-                            const dy: f32 = collision_compare.c.pos[1] - item.c.pos[1];
-                            if (@sqrt(dx * dx - dy * dy) < collision_compare.c.hitbox.radius + item.c.hitbox.radius) {
-                                self.items.items[j].meta.enemy.hp = blk: {
-                                    if (item.meta.bullet.damage > collision_compare.meta.enemy.hp) {
-                                        std.debug.print("enemy down!! {d}\n", .{item.meta.bullet.damage});
-                                        break :blk 0;
-                                    } else break :blk collision_compare.meta.enemy.hp - item.meta.bullet.damage;
-                                    std.debug.print("{d}", .{item.meta.bullet.damage});
-                                };
-                                // Killing the bullet if we hit something
-                                _ = self.items.orderedRemove(i);
-                                len -= 1;
-                            }
-                        }
-                    }
-                }
+            .player => |p| {
+                self.items.items[i].c.vel = Input.playerMovement(500);
+                rl.drawTextureEx(p.*, makeRlVec2(self.items.items[i].c.pos * @as(@Vector(2, f32), @splat(window.scale)), window.origin),
+                0, window.scale, rl.Color.white);
             },
-            .enemy => {
-                self.items.items[i] = EnemyHandler.updateEnemy(item, self.items.items[0]);
-            },
-            else => continue,
+            else => {}
         }
     }
+}
+
+fn makeRlVec2(v: @Vector(2, f32), offset: @Vector(2, f32)) rl.Vector2 {
+    return rl.Vector2.init(v[0] + offset[0], v[1] + offset[1]);
+}
+
+fn clamp(x: f32, y: f32, w: f16, h: f16, outer_w: f32, outer_h: f32) @Vector(2, f32) {
+    var result: @Vector(2, f32) = @splat(0);
+    if (x < 0) result[0] = 0
+    else if (x + w > outer_w) result[0] = outer_w - w;
+    if (y < 0) result[1] = 0
+    else if (y + h > outer_h) result[1] = outer_h - h;
+    return result;
 }

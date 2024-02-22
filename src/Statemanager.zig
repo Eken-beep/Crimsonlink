@@ -1,36 +1,64 @@
 const std = @import("std");
-const World = @import("World.zig");
 const rl = @import("raylib");
+const World = @import("World.zig");
+const Textures = @import("Textures.zig");
 
 const Self = @This();
 
-pub const State = enum { Level, Menu };
+const StateError = error { NoLevel, OutOfMemory };
 
-const LevelLoadError = error{ OutOfMemory, LevelNotFound };
+const Level = struct {
+    id: u8,
+    last_room: u8,
+    rooms: []@Vector(2, u16),
+    // more to be added here
+};
+
+pub const State = enum {
+    main_menu,
+    level,
+};
 
 state: State,
-// We keep the arena allocator in here to reset it everytime the room is reloaded
-arena_allocator: std.heap.ArenaAllocator,
+current_room: u8,
+current_level: ?Level,
+arena: std.heap.ArenaAllocator,
+allocator: std.mem.Allocator,
 
-// a bit undescriptive as this only loads the next room right now
-// the same function should load both room and level soon
-// level if you're not in a room and room if you have already started a level
-pub fn loadLevel(self: *Self, world: *?World, level: u8, images: []rl.Image) LevelLoadError!World {
-    const allocator = self.arena_allocator.allocator();
-    if (world.* != null) {
-        world.*.?.deinit();
-        // We should probably handle this at some point
-        const result: bool = self.arena_allocator.reset(.free_all);
-        std.debug.print("Room reloaded, Memory freed: {any}\n", .{result});
-    }
-    switch (level) {
+// The level does not manage the world, rather the layout of the rooms
+pub fn loadLevel(self: *Self, id: u8) !void {
+    self.state = .level;
+    const last_room: u8 = 5;
+    const rooms = try self.allocator.alloc(@Vector(2, u16), last_room);
+    rooms[0] = @Vector(2, u16){1600, 900};
+    rooms[1] = @Vector(2, u16){1600, 900};
+    rooms[2] = @Vector(2, u16){900, 900};
+    rooms[3] = @Vector(2, u16){1600, 900};
+    rooms[4] = @Vector(2, u16){1100, 300};
+    switch(id) {
         1 => {
-            var w: World = try World.init(allocator, 1600, 900, images);
-            // We add this before the world processes another frame to avoid having to pause the rest of the game when the player doesn't exist yet
-            try w.addItem(World.CollisionType.Player, 400, 225, World.Hitbox{ .radius = 5 }, null, w.textures[1..5], @Vector(2, f32){ 0, 0 });
-            try w.addItem(World.CollisionType.Enemy, 1400, 400, World.Hitbox{ .radius = 5 }, &w.textures[6], null, @Vector(2, f32){ 0, 0 });
-            return w;
+            self.current_level = Level { .id = id, .rooms = rooms, .last_room = last_room };
+            self.current_room = 0;
         },
-        else => return LevelLoadError.LevelNotFound,
+        else => {},
     }
+}
+
+pub fn nextRoom(self: *Self, images: []rl.Image) StateError!World {
+    if (self.current_level) |level| {
+        _ = self.arena.reset(.free_all);
+        if (self.current_room < level.last_room) {
+            self.current_room += 1;
+            // use the dimensions stored in the level
+            var room = try loadRoom(self.arena.allocator(), level.rooms[self.current_room], images);
+            try room.addItem(.{.type = World.WorldPacket.player, .x = 400, .y = 200, .img = &room.textures[1]});
+            return room;
+        }
+    } 
+    return StateError.NoLevel;
+}
+
+fn loadRoom(allocator: std.mem.Allocator, dimensions: @Vector(2, u16), images: []rl.Image) StateError!World {
+    var textures = try Textures.loadTextures(allocator, images);
+    return World.init(dimensions, allocator, textures);
 }
