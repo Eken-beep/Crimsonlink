@@ -44,21 +44,16 @@ pub fn loadLevel(self: *Self, id: u8) !void {
     }
 }
 
-pub fn nextRoom(self: *Self, images: []rl.Image) StateError!World {
+pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
     if (self.current_level) |level| {
         _ = self.arena.reset(.free_all);
         if (self.current_room < level.last_room) {
             self.current_room += 1;
             // use the dimensions stored in the level
-            var room = try loadRoom(self.arena.allocator(), level.rooms[self.current_room], images);
-            try room.addItem(.{.type = World.WorldPacket.player, .x = 400, .y = 200, .img = &room.textures[1]});
+            var room = try World.init(level.rooms[self.current_room], &textures[1], self.arena.allocator());
+            try room.addItem(.{.type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[2..])});
             return room;
         }
     } 
     return StateError.NoLevel;
-}
-
-fn loadRoom(allocator: std.mem.Allocator, dimensions: @Vector(2, u16), images: []rl.Image) StateError!World {
-    var textures = try Textures.loadTextures(allocator, images);
-    return World.init(dimensions, allocator, textures);
 }

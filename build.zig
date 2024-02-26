@@ -25,6 +25,12 @@ pub fn build(b: *std.Build) !void {
 
     const exe = b.addExecutable(.{ .name = "Crimsonlink", .root_source_file = .{ .path = "src/main.zig" }, .optimize = optimize, .target = target });
 
+    const test_step = b.step("test", "Run tests");
+
+    const main_tests = b.addTest(.{ .name = "test", .root_source_file = .{ .path = "src/main.zig"} });
+    const run_main_test = b.addRunArtifact(main_tests);
+    test_step.dependOn(&run_main_test.step);
+
     rl.link(b, exe, target, optimize);
     exe.addModule("raylib", raylib);
     exe.addModule("raylib-math", raylib_math);
