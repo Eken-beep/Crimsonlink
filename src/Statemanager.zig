@@ -51,7 +51,17 @@ pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
             self.current_room += 1;
             // use the dimensions stored in the level
             var room = try World.init(level.rooms[self.current_room], &textures[1], self.arena.allocator());
-            try room.addItem(.{.type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[2..])});
+            try room.addItem(.{.type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[3..7])});
+            try room.addItem(.{.type = World.WorldPacket.enemy, .x = 1200, .y = 600, .hp = 100, .attack_type = .range,
+                .animation = Textures.animation(u3).init(0.3, textures[
+                    Textures.sprite.enemies.blooby.s..Textures.sprite.enemies.blooby.s+Textures.sprite.enemies.blooby.l
+                ])
+            });
+            try room.addItem(.{.type = World.WorldPacket.enemy, .x = 1200, .y = 200, .hp = 100, .attack_type = .melee,
+                .animation = Textures.animation(u3).init(0.5, textures[
+                    Textures.sprite.enemies.slug.s..Textures.sprite.enemies.slug.s+Textures.sprite.enemies.slug.l
+                ])
+            });
             return room;
         }
     } 

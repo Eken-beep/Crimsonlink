@@ -3,22 +3,50 @@ const rl = @import("raylib");
 
 // change these to arrays
 const images = [_][:0]const u8 {
+    // Maps
     "assets/betamap1.png",
     "assets/betamap2.png",
 
+    // Static sprites
+    "assets/heart.png",
+
+    // Characters
     "assets/player/MainCharacter1.png",
     "assets/player/MainCharacter2.png",
     "assets/player/MainCharacter3.png",
     "assets/player/MainCharacter4.png",
+
+    "assets/enemies/blooby/blooby_1.png",
+    "assets/enemies/blooby/blooby_2.png",
+    "assets/enemies/blooby/blooby_3.png",
+    "assets/enemies/blooby/blooby_4.png",
+    "assets/enemies/blooby/blooby_5.png",
+    "assets/enemies/blooby/blooby_6.png",
+    "assets/enemies/blooby/blooby_7.png",
+    "assets/enemies/blooby/blooby_8.png",
+
+    "assets/enemies/slug/slug_1.png",
+    "assets/enemies/slug/slug_2.png",
+    "assets/enemies/slug/slug_3.png",
+    "assets/enemies/slug/slug_4.png",
+    "assets/enemies/slug/slug_5.png",
+    "assets/enemies/slug/slug_6.png",
+    "assets/enemies/slug/slug_7.png",
+    "assets/enemies/slug/slug_8.png",
 };
 
 const animation_bound = struct {
     s: u8,
     l: u8,
 };
-const sprite_names = .{
+pub const sprite = .{
     .maps = animation_bound{ .s = 0, .l = 2 },
-    .player = animation_bound{ .s = 2, .l = 4 },
+    .player = animation_bound{ .s = 3, .l = 4 },
+    .heart = 2,
+    .enemies = .{
+        .blooby = animation_bound{ .s = 7, .l = 8},
+        .slug = animation_bound{ .s = 15, .l = 8},
+    }
 };
 
 pub fn loadTextures(allocator: std.mem.Allocator) ![]rl.Texture2D {
@@ -41,6 +69,7 @@ pub fn animation(comptime T: type) type {
         frames: []rl.Texture,
         frametime: f32,
         timer: f32 = 0,
+
         const Anim = @This();
         pub fn step(anim: *Anim, dt: f32, moving: bool) void {
             if (!moving) anim.current_frame = 0

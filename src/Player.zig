@@ -16,8 +16,8 @@ pub fn mainAttack(self: *Self, world: *World) !void {
         .type = World.WorldPacket.bullet,
         .x = player_pos[0],
         .y = player_pos[1],
-        .vx = -100*@cos(angle),
-        .vy = -100*@sin(angle),
+        .vx = -1000*@cos(angle),
+        .vy = -1000*@sin(angle),
         .damage = self.damage,
     });
 }

@@ -7,11 +7,11 @@ const World = @import("World.zig");
 const Textures = @import("Textures.zig");
 const Statemanager = @import("Statemanager.zig");
 const Player = @import("Player.zig");
+const Gui = @import("Gui.zig");
 
 const color = rl.Color;
 
 // TODO
-// Make an actual collision system?
 // Do something with the player data struct
 // Spawn bullets that hurt the player
 // Organized input system
@@ -34,7 +34,7 @@ pub fn main() anyerror!void {
     var window = Window { .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
     var world: World = undefined;
 
-    var player = Player{ .hp = 69, .max_hp = 100, .damage = 5 };
+    var player = Player{ .hp = 5, .max_hp = 5, .damage = 5 };
 
     while (!rl.windowShouldClose()) {
         if(rl.isWindowResized()) {
@@ -60,6 +60,9 @@ pub fn main() anyerror!void {
                 defer rl.endDrawing();
 
                 rl.drawTextureEx(world.map.*, rl.Vector2.init(window.origin[0], window.origin[1]), 0, window.scale, rl.Color.white);
+
+                Gui.drawLevelGui(window, textures, player);
+
                 world.iterate(&window);
                 
             }
