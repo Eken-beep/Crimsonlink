@@ -8,7 +8,7 @@ max_hp: u8,
 damage: u8,
 
 pub fn mainAttack(self: *Self, world: *World) !void {
-    const player_pos = world.items.items[0].c.pos;
+    const player_pos = world.items.items[0].c.pos + world.items.items[0].c.centerpoint;
     const mx: f32 = @floatFromInt(rl.getMouseX());
     const my: f32 = @floatFromInt(rl.getMouseY());
     const angle = std.math.atan2(f32, player_pos[1]-my, player_pos[0]-mx);
