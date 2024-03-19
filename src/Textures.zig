@@ -2,7 +2,7 @@ const std = @import("std");
 const rl = @import("raylib");
 
 // change these to arrays
-const images = [_][:0]const u8 {
+const images = [_][:0]const u8{
     // Maps
     "assets/betamap1.png",
     "assets/betamap2.png",
@@ -39,15 +39,10 @@ const animation_bound = struct {
     s: u8,
     l: u8,
 };
-pub const sprite = .{
-    .maps = animation_bound{ .s = 0, .l = 2 },
-    .player = animation_bound{ .s = 3, .l = 4 },
-    .heart = 2,
-    .enemies = .{
-        .blooby = animation_bound{ .s = 7, .l = 8},
-        .slug = animation_bound{ .s = 15, .l = 8},
-    }
-};
+pub const sprite = .{ .maps = animation_bound{ .s = 0, .l = 2 }, .player = animation_bound{ .s = 3, .l = 4 }, .heart = 2, .enemies = .{
+    .blooby = animation_bound{ .s = 7, .l = 8 },
+    .slug = animation_bound{ .s = 15, .l = 8 },
+} };
 
 pub fn loadTextures(allocator: std.mem.Allocator) ![]rl.Texture2D {
     var image_buffer = try allocator.alloc(rl.Image, images.len);
@@ -72,8 +67,7 @@ pub fn animation(comptime T: type) type {
 
         const Anim = @This();
         pub fn step(anim: *Anim, dt: f32, moving: bool) void {
-            if (!moving) anim.current_frame = 0
-            else {
+            if (!moving) anim.current_frame = 0 else {
                 anim.timer += dt;
                 if (anim.timer > anim.frametime) {
                     anim.timer = 0;
