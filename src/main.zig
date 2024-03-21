@@ -49,13 +49,14 @@ pub fn main() anyerror!void {
                 rl.drawText("Press space to start", window.width / 2, window.height / 2, 28, color.gray);
                 if (rl.isKeyDown(rl.KeyboardKey.key_space)) {
                     state.state = .level;
-                    try state.loadLevel(1);
+                    try state.loadLevel(1, textures);
                     // we only pass the textures as an argement here to add the player in the beginning
                     world = try state.nextRoom(textures);
                 }
             },
             .level => {
                 if (key == .key_enter) try player.mainAttack(&world);
+                if (world.completed) world = try state.nextRoom(textures);
                 rl.beginDrawing();
                 defer rl.endDrawing();
 

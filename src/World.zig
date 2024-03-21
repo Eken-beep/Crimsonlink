@@ -6,7 +6,7 @@ const Textures = @import("Textures.zig");
 
 const Self = @This();
 
-pub const WorldPacket = union(enum) {
+pub const WorldPacket = enum {
     player,
     enemy,
     bullet,
@@ -65,6 +65,7 @@ items: std.ArrayList(WorldItem),
 allocator: std.mem.Allocator,
 dim: @Vector(2, u16),
 map: *rl.Texture2D,
+completed: bool = false,
 
 pub fn init(dim: @Vector(2, u16), map: *rl.Texture2D, allocator: std.mem.Allocator) !Self {
     return Self{
@@ -75,6 +76,7 @@ pub fn init(dim: @Vector(2, u16), map: *rl.Texture2D, allocator: std.mem.Allocat
     };
 }
 
+// For adding items manually
 pub fn addItem(self: *Self, item: anytype) !void {
     switch (item.type) {
         .player => {
@@ -117,9 +119,16 @@ pub fn addItem(self: *Self, item: anytype) !void {
 pub fn iterate(self: *Self, window: *Window) void {
     var len = self.items.items.len;
     var i: u16 = 0;
+
+    // local copy to keep track of if we've won
+    var found_enemy: bool = false;
+    defer self.completed = !found_enemy;
+
     loop: while (len > i) : (i += 1) {
         const item = self.items.items[i];
         self.items.items[i].c.pos += applyVelocity(self, item.c, item.meta);
+
+        if (item.meta == .enemy) found_enemy = true;
 
         if (item.hp < 1) {
             _ = self.items.orderedRemove(i);

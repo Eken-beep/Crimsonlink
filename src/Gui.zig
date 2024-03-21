@@ -10,6 +10,6 @@ pub fn drawLevelGui(window: Window, textures: []rl.Texture2D, player: Player) vo
 
     for (0..player.hp) |i| {
         const fi: f32 = @floatFromInt(i);
-        rl.drawTextureEx(textures[Textures.sprite.heart], rl.Vector2.init((10 + 90*fi) * s, 10 * s), 0, s, rl.Color.white);
+        rl.drawTextureEx(textures[Textures.sprite.heart], rl.Vector2.init((10 + 90 * fi) * s, 10 * s), 0, s, rl.Color.white);
     }
 }
