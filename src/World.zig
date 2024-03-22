@@ -3,6 +3,7 @@ const rl = @import("raylib");
 const Window = @import("Window.zig");
 const Input = @import("Input.zig");
 const Textures = @import("Textures.zig");
+const Player = @import("Player.zig");
 
 const Self = @This();
 
@@ -116,7 +117,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
     }
 }
 
-pub fn iterate(self: *Self, window: *Window) void {
+pub fn iterate(self: *Self, window: *Window, player: *Player) void {
     var len = self.items.items.len;
     var i: u16 = 0;
 
@@ -133,6 +134,7 @@ pub fn iterate(self: *Self, window: *Window) void {
         if (item.hp < 1) {
             _ = self.items.orderedRemove(i);
             len -= 1;
+            if (item.meta == .enemy) player.addXp(30);
             continue :loop;
         }
 

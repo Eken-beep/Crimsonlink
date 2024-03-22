@@ -39,10 +39,15 @@ const animation_bound = struct {
     s: u8,
     l: u8,
 };
-pub const sprite = .{ .maps = animation_bound{ .s = 0, .l = 2 }, .player = animation_bound{ .s = 3, .l = 4 }, .heart = 2, .enemies = .{
-    .blooby = animation_bound{ .s = 7, .l = 8 },
-    .slug = animation_bound{ .s = 15, .l = 8 },
-} };
+pub const sprite = .{
+    .maps = animation_bound{ .s = 0, .l = 2 },
+    .player = animation_bound{ .s = 3, .l = 4 },
+    .heart = 2,
+    .enemies = .{
+        .blooby = animation_bound{ .s = 7, .l = 8 },
+        .slug = animation_bound{ .s = 15, .l = 8 },
+    },
+};
 
 pub fn loadTextures(allocator: std.mem.Allocator) ![]rl.Texture2D {
     var image_buffer = try allocator.alloc(rl.Image, images.len);

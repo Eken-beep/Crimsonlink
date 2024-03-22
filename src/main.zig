@@ -64,7 +64,7 @@ pub fn main() anyerror!void {
 
                 Gui.drawLevelGui(window, textures, player);
 
-                world.iterate(&window);
+                world.iterate(&window, &player);
             },
         }
         rl.clearBackground(color.black);
