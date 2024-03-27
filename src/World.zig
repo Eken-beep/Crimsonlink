@@ -11,6 +11,7 @@ pub const WorldPacket = enum {
     player,
     enemy,
     bullet,
+    item,
     // What is expected from the different anonymous structs
     //    player: struct {
     //        x: f32,
@@ -55,6 +56,10 @@ pub const WorldItemMetadata = union(enum) {
             range,
             melee,
         },
+    },
+    item: struct {
+        dt: f32,
+        payload: Player.Item,
     },
 };
 
@@ -114,6 +119,19 @@ pub fn addItem(self: *Self, item: anytype) !void {
                 .meta = WorldItemMetadata{ .bullet = item.damage },
             });
         },
+        .item => {
+            try self.items.append(WorldItem{
+                .c = Collider{
+                    .pos = @Vector(2, f32){ item.x, item.y },
+                    .vel = @splat(0),
+                    .hitbox = @splat(10),
+                    .centerpoint = @splat(5),
+                },
+                .hp = 1,
+                .meta = WorldItemMetadata{ .item = .{ .dt = 0, .payload = Player.Item{ .ammount = item.ammount, .image = item.sprite, .type = item.itemtype } } },
+            });
+        },
+        //else => {},
     }
 }
 
@@ -134,7 +152,6 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
         if (item.hp < 1) {
             _ = self.items.orderedRemove(i);
             len -= 1;
-            if (item.meta == .enemy) player.addXp(30);
             continue :loop;
         }
 
@@ -143,6 +160,14 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 // check if velocity isn't 0 to check for movement
                 self.items.items[i].meta.player.step(rl.getFrameTime(), item.c.vel[0] != 0 or item.c.vel[1] != 0);
                 self.items.items[i].c.vel = Input.playerMovement(500);
+
+                if (getOverlappingItem(item.c.pos, item.c.hitbox, .item, self.items.items)) |index| blk: {
+                    player.inventory.add(self.items.items[index].meta.item.payload) catch {
+                        break :blk;
+                    };
+                    _ = self.items.orderedRemove(index);
+                    len -= 1;
+                }
 
                 rl.drawTextureEx(p.frames[p.current_frame], makeRlVec2(self.items.items[i].c.pos, window.origin, window.scale), 0, window.scale, rl.Color.white);
             },
@@ -160,9 +185,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 rl.drawCircle(@as(i32, @intFromFloat(window.scale * item.c.pos[0] + window.origin[0])), @as(i32, @intFromFloat(window.scale * item.c.pos[1] + window.origin[1])), 5 * window.scale, rl.Color.pink);
 
                 // The last thing to do with the bullet is checking if it hit something
-                const index = getOverlappingItem(item.c.pos, item.c.hitbox, .enemy, self.items.items) catch {
-                    continue :loop;
-                };
+                const index = if (getOverlappingItem(item.c.pos, item.c.hitbox, .enemy, self.items.items)) |index| index else continue :loop;
                 // for now bullets are op
                 self.items.items[index].hp -= item.meta.bullet;
                 _ = self.items.orderedRemove(i);
@@ -177,6 +200,12 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 }
 
                 rl.drawTextureEx(e.animation.frames[e.animation.current_frame], makeRlVec2(item.c.pos, window.origin, window.scale), 0, window.scale, rl.Color.white);
+            },
+            .item => |x| {
+                self.items.items[i].meta.item.dt += rl.getFrameTime();
+                // Bouncy item
+                const vpos = item.c.pos + @Vector(2, f32){ 0, 10 * @sin(x.dt) };
+                rl.drawTextureEx(x.payload.image.*, makeRlVec2(vpos, window.origin, window.scale), 0, window.scale, rl.Color.white);
             },
         }
     }
@@ -197,15 +226,13 @@ fn applyVelocity(world: *Self, collider: Collider, object_type: WorldItemMetadat
     return velocity;
 }
 
-const OverlapError = error{NoOverlap};
-
-fn getOverlappingItem(item: @Vector(2, f32), item_size: @Vector(2, f32), goal_object: anytype, items: []WorldItem) OverlapError!usize {
+fn getOverlappingItem(item: @Vector(2, f32), item_size: @Vector(2, f32), goal_object: anytype, items: []WorldItem) ?usize {
     for (items, 0..) |other_item, i| {
         if (other_item.meta == goal_object) {
             if (doOverlap(item[0], item[1], item_size[0], item_size[1], other_item.c.pos[0], other_item.c.pos[1], other_item.c.hitbox[0], other_item.c.hitbox[1])) return i;
         }
     }
-    return OverlapError.NoOverlap;
+    return null;
 }
 
 fn doOverlap(x1: f32, y1: f32, w1: f32, h1: f32, x2: f32, y2: f32, w2: f32, h2: f32) bool {

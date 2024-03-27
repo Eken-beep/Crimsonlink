@@ -8,10 +8,42 @@ const BASEXP = 100;
 hp: u8,
 max_hp: u8,
 damage: u8,
+inventory: struct {
+    const Inventory = @This();
+    // a null slot is empty
+    items: [10]?Item,
+    dogecoins: u32,
+    pub fn add(self: *Inventory, i: Item) error{InventoryFull}!void {
+        for (self.items, 0..) |item, index| {
+            if (item) |used_slot| {
+                if (used_slot.type == i.type) {
+                    self.items[index].?.ammount +|= i.ammount;
+                    if (used_slot.ammount + i.ammount > 255) continue else break;
+                }
+            }
+            // If no previous stack is found just continue searching for an empty slot to put it in
+        } else for (self.items, 0..) |item, index| {
+            if (item == null) self.items[index] = i;
+            // If all else fails then don't pick up the item
+        } else return error.InventoryFull;
+    }
+} = .{
+    .dogecoins = 0,
+    .items = [1]?Item{null} ** 10,
+},
 
-xp: u16 = 0,
-requiredxp: u16 = BASEXP,
-level: u16 = 0,
+pub const Item = struct {
+    image: *rl.Texture2D,
+    // We use 255 stacks
+    ammount: u8,
+    type: enum {
+        // Non consumables have no payload
+        slime,
+        slug_eye,
+
+        ammo,
+    },
+};
 
 pub fn mainAttack(self: *Self, world: *World) !void {
     const player_pos = world.items.items[0].c.pos + world.items.items[0].c.centerpoint;
@@ -26,13 +58,4 @@ pub fn mainAttack(self: *Self, world: *World) !void {
         .vy = -1000 * @sin(angle),
         .damage = self.damage,
     });
-}
-
-pub fn addXp(self: *Self, ammount: u16) void {
-    self.xp += ammount;
-    if (self.xp > self.requiredxp) {
-        self.requiredxp = @intFromFloat(BASEXP * std.math.pow(f32, 1.08, @as(f32, @floatFromInt(self.level))));
-        self.level += 1;
-        self.xp = 0;
-    }
 }

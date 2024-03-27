@@ -125,6 +125,7 @@ pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
             var room = try World.init(level.rooms[self.current_room].dimensions, &textures[1], self.arena.allocator());
             try room.addItem(.{ .type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[3..7]) });
             try room.items.appendSlice(&level.rooms[self.current_room].enemies);
+            try room.addItem(.{ .type = World.WorldPacket.item, .x = 50, .y = 50, .sprite = &textures[3], .itemtype = .slime, .ammount = 1 });
             return room;
         }
     }
