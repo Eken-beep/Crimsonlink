@@ -35,7 +35,7 @@ const images = [_][:0]const u8{
     "assets/enemies/slug/slug_8.png",
 };
 
-const animation_bound = struct {
+pub const animation_bound = struct {
     s: u8,
     l: u8,
 };

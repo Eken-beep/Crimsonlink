@@ -8,6 +8,7 @@ const BASEXP = 100;
 hp: u8,
 max_hp: u8,
 damage: u8,
+
 inventory: struct {
     const Inventory = @This();
     // a null slot is empty

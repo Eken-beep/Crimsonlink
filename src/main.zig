@@ -8,6 +8,7 @@ const Textures = @import("Textures.zig");
 const Statemanager = @import("Statemanager.zig");
 const Player = @import("Player.zig");
 const Gui = @import("Gui.zig");
+const Json = @import("Json.zig");
 
 const color = rl.Color;
 
@@ -30,18 +31,19 @@ pub fn main() anyerror!void {
     const textures = try Textures.loadTextures(gpa);
     defer gpa.free(textures);
 
-    var state = Statemanager{ .state = .main_menu, .allocator = gpa, .arena = std.heap.ArenaAllocator.init(gpa), .current_room = undefined, .current_level = undefined };
+    var state = Statemanager.init(gpa);
+    state.level_allocator = state.level_arena.allocator();
     var window = Window{ .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
     var world: World = undefined;
 
-    var player = Player{ .hp = 5, .max_hp = 5, .damage = 20 };
+    var player = try Json.loadPlayerData(null, gpa);
 
     while (!rl.windowShouldClose()) {
         if (rl.isWindowResized()) {
             // isn't going to overflow as u16 anyways so who cares
             window.update(@as(u16, @intCast(rl.getRenderWidth())), @as(u16, @intCast(rl.getRenderHeight())), 1600, 900);
         }
-        const key = rl.getKeyPressed();
+
         switch (state.state) {
             .main_menu => {
                 rl.beginDrawing();
@@ -55,7 +57,7 @@ pub fn main() anyerror!void {
                 }
             },
             .level => {
-                if (key == .key_enter) try player.mainAttack(&world);
+                if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) try player.mainAttack(&world);
                 if (world.completed) world = try state.nextRoom(textures);
                 rl.beginDrawing();
                 defer rl.endDrawing();
@@ -64,7 +66,7 @@ pub fn main() anyerror!void {
 
                 Gui.drawLevelGui(window, textures, player);
 
-                world.iterate(&window, &player);
+                if (!world.paused) world.iterate(&window, &player);
             },
         }
         rl.clearBackground(color.black);

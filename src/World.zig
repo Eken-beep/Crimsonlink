@@ -52,9 +52,9 @@ pub const WorldItemMetadata = union(enum) {
     bullet: u8,
     enemy: struct {
         animation: Textures.animation(u3),
-        attack_type: enum {
-            range,
-            melee,
+        attack_type: enum(u8) {
+            range = 1,
+            melee = 2,
         },
     },
     item: struct {
@@ -72,6 +72,7 @@ allocator: std.mem.Allocator,
 dim: @Vector(2, u16),
 map: *rl.Texture2D,
 completed: bool = false,
+paused: bool = false,
 
 pub fn init(dim: @Vector(2, u16), map: *rl.Texture2D, allocator: std.mem.Allocator) !Self {
     return Self{
@@ -159,7 +160,6 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
             .player => |p| {
                 // check if velocity isn't 0 to check for movement
                 self.items.items[i].meta.player.step(rl.getFrameTime(), item.c.vel[0] != 0 or item.c.vel[1] != 0);
-                self.items.items[i].c.vel = Input.playerMovement(500);
 
                 if (getOverlappingItem(item.c.pos, item.c.hitbox, .item, self.items.items)) |index| blk: {
                     player.inventory.add(self.items.items[index].meta.item.payload) catch {
@@ -187,7 +187,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 // The last thing to do with the bullet is checking if it hit something
                 const index = if (getOverlappingItem(item.c.pos, item.c.hitbox, .enemy, self.items.items)) |index| index else continue :loop;
                 // for now bullets are op
-                self.items.items[index].hp -= item.meta.bullet;
+                self.items.items[index].hp -|= item.meta.bullet;
                 _ = self.items.orderedRemove(i);
                 len -= 1;
             },
