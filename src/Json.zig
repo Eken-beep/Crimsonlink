@@ -61,8 +61,8 @@ pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, texture
         enemy_buffer[i] = World.WorldItem{
             .c = .{
                 .pos = @Vector(2, f32){
-                    @floatCast(raw_enemy.object.get("x").?.float),
-                    @floatCast(raw_enemy.object.get("y").?.float),
+                    @floatFromInt(raw_enemy.object.get("x").?.integer),
+                    @floatFromInt(raw_enemy.object.get("y").?.integer),
                 },
                 .centerpoint = @Vector(2, f16){ enemy_data.width / 2, enemy_data.height / 2 },
                 .hitbox = @Vector(2, f16){ enemy_data.width, enemy_data.height },
