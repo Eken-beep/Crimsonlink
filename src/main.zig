@@ -36,6 +36,12 @@ pub fn main() anyerror!void {
     var window = Window{ .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
     var world: World = undefined;
 
+    var input_state = Input.InputState{
+        .keybinds = std.AutoHashMap(i10, Input.InputAction).init(gpa),
+        .active_actions = std.ArrayList(Input.InputAction).init(gpa),
+    };
+    try Json.loadKeybindings(null, &input_state.keybinds, gpa);
+
     var player = try Json.loadPlayerData(null, gpa);
 
     while (!rl.windowShouldClose()) {
@@ -53,12 +59,13 @@ pub fn main() anyerror!void {
                     state.state = .level;
                     try state.loadLevel(1, textures);
                     // we only pass the textures as an argement here to add the player in the beginning
-                    world = try state.nextRoom(textures);
+                    world = try state.nextRoom(textures, &world);
                 }
             },
             .level => {
-                if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) try player.mainAttack(&world);
-                if (world.completed) world = try state.nextRoom(textures);
+                if (world.completed) world = try state.nextRoom(textures, &world);
+                try input_state.update();
+                try input_state.parse(&world, &player);
                 rl.beginDrawing();
                 defer rl.endDrawing();
 

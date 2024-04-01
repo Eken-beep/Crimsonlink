@@ -1,0 +1,53 @@
+[
+    {
+        "key": 87,
+        "action": "moveup"
+    },
+    {
+        "key": 65,
+        "action": "moveleft"
+    },
+    {
+        "key": 83,
+        "action": "movedown"
+    },
+    {
+        "key": 68,
+        "action": "moveright"
+    },
+
+    {
+        "key": -87,
+        "action": "haltup"
+    },
+    {
+        "key": -65,
+        "action": "haltleft"
+    },
+    {
+        "key": -83,
+        "action": "haltdown"
+    },
+    {
+        "key": -68,
+        "action": "haltright"
+    },
+
+
+
+    {
+        "key": 501,
+        "action": "shoot_begin"
+    },
+    {
+        "key": -501,
+        "action": "shoot_end"
+    },
+
+
+
+    {
+        "key": 32,
+        "action": "pause"
+    }
+]

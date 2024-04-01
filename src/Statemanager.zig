@@ -53,8 +53,12 @@ pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D) !void {
     const last_room: u8 = 5;
     const rooms = try self.allocator.alloc(Room, last_room);
     const loadedRoom = try Json.loadRoom(1, 1, self.level_allocator, textures);
-    rooms[0] = Room{
+    rooms[1] = Room{
         .dimensions = @Vector(2, u16){ 1600, 900 },
+        .enemies = loadedRoom.enemies,
+    };
+    rooms[2] = Room{
+        .dimensions = loadedRoom.dimensions,
         .enemies = loadedRoom.enemies,
     };
     switch (id) {
@@ -74,15 +78,18 @@ pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D) !void {
     self.current_room = 0;
 }
 
-pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
+pub fn nextRoom(self: *Self, textures: []rl.Texture2D, world: *World) StateError!World {
     if (self.current_level) |level| {
+        // This is because the player gets stuck in the old velocity if room is changed while holding down a movementkey
+        // Don't know how to patch this otherwise right now
+        const prev_playervel: ?@Vector(2, f32) = if (self.current_room != 0) world.items.items[0].c.vel else null;
         _ = self.current_level.?.arena.reset(.free_all);
         if (self.current_room < level.last_room) {
-            // Commented because for now we just loop through the same room over and over again
-            //self.current_room += 1;
+            self.current_room += 1;
             // use the dimensions stored in the level
             var room = try World.init(level.rooms[self.current_room].dimensions, &textures[1], self.current_level.?.allocator);
             try room.addItem(.{ .type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[3..7]) });
+            if (prev_playervel) |pvel| room.items.items[0].c.vel = pvel;
             try room.items.appendSlice(level.rooms[self.current_room].enemies);
             // Placeholder texture
             try room.addItem(.{ .type = World.WorldPacket.item, .x = 50, .y = 50, .sprite = &textures[3], .itemtype = .slime, .ammount = 1 });

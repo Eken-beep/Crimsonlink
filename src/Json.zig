@@ -5,8 +5,10 @@ const World = @import("World.zig");
 const Statemanager = @import("Statemanager.zig");
 const EnemyTypes = @import("EnemyTypes.zig");
 const Textures = @import("Textures.zig");
+const Input = @import("Input.zig");
 
 const DefaultPlayerData = @embedFile("data/StandardPlayer.json");
+const DefaultKeybinds = @embedFile("data/DefaultBindings.json");
 
 const json = std.json;
 
@@ -25,6 +27,22 @@ pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator) !Player {
     );
     const v = parsed.value;
     return Player{ .hp = v.hp, .max_hp = v.max_hp, .damage = v.damage, .inventory = .{ .dogecoins = v.dogecoins, .items = undefined } };
+}
+
+const ConfigParseError = error{InvalidKeyConfig};
+// Inconsistent with the other loading functions who use a return instead of pointer
+pub fn loadKeybindings(
+    configfile: ?[]const u8,
+    keybindings: *std.AutoHashMap(i10, Input.InputAction),
+    allocator: std.mem.Allocator,
+) !void {
+    const parsed = try json.parseFromSlice(json.Value, allocator, configfile orelse DefaultKeybinds, .{});
+    const keyarray = parsed.value.array.items;
+    for (keyarray) |keybindobject| {
+        const bind = keybindobject.object.get("key") orelse return ConfigParseError.InvalidKeyConfig;
+        const action = keybindobject.object.get("action") orelse return ConfigParseError.InvalidKeyConfig;
+        try keybindings.put(@as(i10, @intCast(bind.integer)), try mapActionToInputAction(action.string));
+    }
 }
 
 const IntermediaryEnemyRepresentation = struct {
@@ -88,4 +106,20 @@ fn processEnemies(allocator: std.mem.Allocator, enemies: []json.Value.objectMap)
             .y = enemy.get("y").?.float,
         };
     }
+}
+
+fn mapActionToInputAction(action: []const u8) !Input.InputAction {
+    // This abomination is zig fmt's fault
+    if (std.mem.eql(u8, "moveup", action)) return Input.InputAction.moveup;
+    if (std.mem.eql(u8, "moveleft", action)) return Input.InputAction.moveleft;
+    if (std.mem.eql(u8, "movedown", action)) return Input.InputAction.movedown;
+    if (std.mem.eql(u8, "moveright", action)) return Input.InputAction.moveright;
+    if (std.mem.eql(u8, "haltup", action)) return Input.InputAction.haltup;
+    if (std.mem.eql(u8, "haltleft", action)) return Input.InputAction.haltleft;
+    if (std.mem.eql(u8, "haltdown", action)) return Input.InputAction.haltdown;
+    if (std.mem.eql(u8, "haltright", action)) return Input.InputAction.haltright;
+    if (std.mem.eql(u8, "shoot_begin", action)) return Input.InputAction.shoot_begin;
+    if (std.mem.eql(u8, "shoot_end", action)) return Input.InputAction.shoot_end;
+    if (std.mem.eql(u8, "pause", action)) return Input.InputAction.pause;
+    return error.InvalidKeyConfig;
 }
