@@ -59,11 +59,11 @@ pub fn main() anyerror!void {
                     state.state = .level;
                     try state.loadLevel(1, textures);
                     // we only pass the textures as an argement here to add the player in the beginning
-                    world = try state.nextRoom(textures, &world);
+                    world = try state.nextRoom(textures);
                 }
             },
             .level => {
-                if (world.completed) world = try state.nextRoom(textures, &world);
+                if (world.completed) world = try state.nextRoom(textures);
                 try input_state.update();
                 try input_state.parse(&world, &player);
                 rl.beginDrawing();
