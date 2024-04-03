@@ -172,7 +172,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
 
                 if (getOverlappingItem(item.c.pos, item.c.hitbox, .item, self.items.items)) |index| blk: {
-                    player.inventory.add(self.items.items[index].meta.item.payload) catch {
+                    player.inventory.add(&self.items.items[index].meta.item.payload) catch {
                         break :blk;
                     };
                     _ = self.items.orderedRemove(index);

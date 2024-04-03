@@ -26,7 +26,7 @@ pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator) !Player {
         .{},
     );
     const v = parsed.value;
-    return Player{ .hp = v.hp, .max_hp = v.max_hp, .damage = v.damage, .inventory = .{ .dogecoins = v.dogecoins, .items = undefined } };
+    return Player{ .hp = v.hp, .max_hp = v.max_hp, .damage = v.damage, .inventory = .{ .dogecoins = v.dogecoins, .items = [1]?Player.Item{null} ** 10 } };
 }
 
 const ConfigParseError = error{InvalidKeyConfig};

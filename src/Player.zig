@@ -8,24 +8,34 @@ const BASEXP = 100;
 hp: u8,
 max_hp: u8,
 damage: u8,
-movementspeed: f32 = 100,
+movementspeed: f32 = 300,
 
 inventory: struct {
     const Inventory = @This();
     // a null slot is empty
     items: [10]?Item,
     dogecoins: u32,
-    pub fn add(self: *Inventory, i: Item) error{InventoryFull}!void {
+    pub fn add(self: *Inventory, i: *Item) error{InventoryFull}!void {
         for (self.items, 0..) |item, index| {
             if (item) |used_slot| {
                 if (used_slot.type == i.type) {
-                    self.items[index].?.ammount +|= i.ammount;
-                    if (used_slot.ammount + i.ammount > 255) continue else break;
+                    const overflow: u8 = used_slot.ammount +% i.ammount;
+                    if (overflow == 0) {
+                        self.items[index].?.ammount = overflow;
+                        return;
+                    } else {
+                        self.items[index].?.ammount = 255;
+                        i.ammount -= overflow;
+                        continue;
+                    }
                 }
             }
             // If no previous stack is found just continue searching for an empty slot to put it in
         } else for (self.items, 0..) |item, index| {
-            if (item == null) self.items[index] = i;
+            if (item == null) {
+                self.items[index] = i.*;
+                return;
+            }
             // If all else fails then don't pick up the item
         } else return error.InventoryFull;
     }
@@ -39,7 +49,6 @@ pub const Item = struct {
     // We use 255 stacks
     ammount: u8,
     type: enum {
-        // Non consumables have no payload
         slime,
         slug_eye,
 
