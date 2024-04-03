@@ -5,6 +5,8 @@ const Input = @import("Input.zig");
 const Textures = @import("Textures.zig");
 const Player = @import("Player.zig");
 
+const key = rl.KeyboardKey;
+
 const Self = @This();
 
 pub const WorldPacket = enum {
@@ -160,6 +162,14 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
             .player => |p| {
                 // check if velocity isn't 0 to check for movement
                 self.items.items[i].meta.player.step(rl.getFrameTime(), item.c.vel[0] != 0 or item.c.vel[1] != 0);
+
+                // I give up just find the wierd movement and kill it
+                // This makes it akward to not be able to keep walking after changing room
+                // but is better than the alternative of breaking all movement after changing room
+                if (item.c.vel[0] > 0 and rl.isKeyUp(key.key_d)) self.items.items[i].c.vel[0] = 0;
+                if (item.c.vel[1] > 0 and rl.isKeyUp(key.key_s)) self.items.items[i].c.vel[1] = 0;
+                if (item.c.vel[0] < 0 and rl.isKeyUp(key.key_a)) self.items.items[i].c.vel[0] = 0;
+                if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
 
                 if (getOverlappingItem(item.c.pos, item.c.hitbox, .item, self.items.items)) |index| blk: {
                     player.inventory.add(self.items.items[index].meta.item.payload) catch {

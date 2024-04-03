@@ -52,22 +52,20 @@ pub const InputState = struct {
                 }
             }
         }
-        if (self.active_actions.items.len > 0) std.debug.print("{any}", .{self.active_actions.items});
     }
 
     pub fn parse(self: *Self, world: *World, player: *Player) !void {
         while (self.active_actions.items.len > 0) {
-            const pvel = world.items.items[0].c.vel;
             switch (self.active_actions.pop()) {
-                .moveup => world.items.items[0].c.vel = @Vector(2, f32){ pvel[0], -player.movementspeed },
-                .moveleft => world.items.items[0].c.vel = @Vector(2, f32){ -player.movementspeed, pvel[1] },
-                .movedown => world.items.items[0].c.vel = @Vector(2, f32){ pvel[0], player.movementspeed },
-                .moveright => world.items.items[0].c.vel = @Vector(2, f32){ player.movementspeed, pvel[1] },
+                .moveup => world.items.items[0].c.vel += @Vector(2, f32){ 0, -player.movementspeed },
+                .moveleft => world.items.items[0].c.vel += @Vector(2, f32){ -player.movementspeed, 0 },
+                .movedown => world.items.items[0].c.vel += @Vector(2, f32){ 0, player.movementspeed },
+                .moveright => world.items.items[0].c.vel += @Vector(2, f32){ player.movementspeed, 0 },
 
-                .haltup => world.items.items[0].c.vel = @Vector(2, f32){ pvel[0], 0 },
-                .haltleft => world.items.items[0].c.vel = @Vector(2, f32){ 0, pvel[1] },
-                .haltdown => world.items.items[0].c.vel = @Vector(2, f32){ pvel[0], 0 },
-                .haltright => world.items.items[0].c.vel = @Vector(2, f32){ 0, pvel[1] },
+                .haltup => world.items.items[0].c.vel += @Vector(2, f32){ 0, player.movementspeed },
+                .haltleft => world.items.items[0].c.vel += @Vector(2, f32){ player.movementspeed, 0 },
+                .haltdown => world.items.items[0].c.vel += @Vector(2, f32){ 0, -player.movementspeed },
+                .haltright => world.items.items[0].c.vel += @Vector(2, f32){ -player.movementspeed, 0 },
 
                 // Shooting
                 .shoot_begin => try player.mainAttack(world),
