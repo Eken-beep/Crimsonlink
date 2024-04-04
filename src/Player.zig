@@ -19,8 +19,9 @@ inventory: struct {
         for (self.items, 0..) |item, index| {
             if (item) |used_slot| {
                 if (used_slot.type == i.type) {
+                    // Check how much overflow we get and carry that over to the next slot if it happens
                     const overflow: u8 = used_slot.ammount +% i.ammount;
-                    if (overflow == 0) {
+                    if (overflow < used_slot.ammount) {
                         self.items[index].?.ammount = overflow;
                         return;
                     } else {
