@@ -16,6 +16,10 @@ inventory: struct {
     items: [10]?Item,
     dogecoins: u32,
     pub fn add(self: *Inventory, i: *Item) error{InventoryFull}!void {
+        if (i.type == .money) {
+            self.dogecoins += i.ammount;
+            return;
+        }
         for (self.items, 0..) |item, index| {
             if (item) |used_slot| {
                 if (used_slot.type == i.type) {
@@ -54,6 +58,7 @@ pub const Item = struct {
         slug_eye,
 
         ammo,
+        money,
     },
 };
 

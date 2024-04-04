@@ -9,6 +9,7 @@ const images = [_][:0]const u8{
 
     // Static sprites
     "assets/heart.png",
+    "assets/doge.png",
 
     // Characters
     "assets/player/MainCharacter1.png",
@@ -41,11 +42,12 @@ pub const animation_bound = struct {
 };
 pub const sprite = .{
     .maps = animation_bound{ .s = 0, .l = 2 },
-    .player = animation_bound{ .s = 3, .l = 4 },
+    .player = animation_bound{ .s = 4, .l = 4 },
     .heart = 2,
+    .dogecoin = 3,
     .enemies = .{
-        .blooby = animation_bound{ .s = 7, .l = 8 },
-        .slug = animation_bound{ .s = 15, .l = 8 },
+        .blooby = animation_bound{ .s = 8, .l = 8 },
+        .slug = animation_bound{ .s = 16, .l = 8 },
     },
 };
 

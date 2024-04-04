@@ -71,9 +71,9 @@ pub fn main() anyerror!void {
 
                 rl.drawTextureEx(world.map.*, rl.Vector2.init(window.origin[0], window.origin[1]), 0, window.scale, rl.Color.white);
 
-                Gui.drawLevelGui(window, textures, player);
-
                 if (!world.paused) world.iterate(&window, &player);
+
+                try Gui.drawLevelGui(window, textures, player);
             },
         }
         rl.clearBackground(color.black);

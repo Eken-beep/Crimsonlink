@@ -85,10 +85,10 @@ pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
             self.current_room += 1;
             // use the dimensions stored in the level
             var room = try World.init(level.rooms[self.current_room].dimensions, &textures[1], self.current_level.?.allocator);
-            try room.addItem(.{ .type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[3..7]) });
+            try room.addItem(.{ .type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[4..8]) });
             try room.items.appendSlice(level.rooms[self.current_room].enemies);
             // Placeholder texture
-            try room.addItem(.{ .type = World.WorldPacket.item, .x = 50, .y = 50, .sprite = &textures[3], .itemtype = .slime, .ammount = 1 });
+            try room.addItem(.{ .type = World.WorldPacket.item, .x = 500, .y = 50, .sprite = &textures[Textures.sprite.dogecoin], .itemtype = .money, .ammount = 5 });
             return room;
         }
     }
