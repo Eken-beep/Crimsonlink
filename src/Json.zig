@@ -85,6 +85,7 @@ pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, texture
                 .centerpoint = @Vector(2, f16){ enemy_data.width / 2, enemy_data.height / 2 },
                 .hitbox = @Vector(2, f16){ enemy_data.width, enemy_data.height },
                 .vel = @splat(0),
+                .collision = .kinetic,
             },
             .hp = enemy_data.hp,
             .meta = World.WorldItemMetadata{ .enemy = .{

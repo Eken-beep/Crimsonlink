@@ -89,6 +89,7 @@ pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
             try room.items.appendSlice(level.rooms[self.current_room].enemies);
             // Placeholder texture
             try room.addItem(.{ .type = World.WorldPacket.item, .x = 500, .y = 50, .sprite = &textures[Textures.sprite.dogecoin], .itemtype = .money, .ammount = 5 });
+            try room.addItem(.{ .type = World.WorldPacket.static, .x = 800, .y = 50, .sprite = &textures[Textures.sprite.dogecoin] });
             return room;
         }
     }

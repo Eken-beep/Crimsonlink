@@ -74,5 +74,6 @@ pub fn mainAttack(self: *Self, world: *World) !void {
         .vx = -1000 * @cos(angle),
         .vy = -1000 * @sin(angle),
         .damage = self.damage,
+        .owner = .player,
     });
 }

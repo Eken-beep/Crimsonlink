@@ -4,6 +4,7 @@ const Window = @import("Window.zig");
 const Input = @import("Input.zig");
 const Textures = @import("Textures.zig");
 const Player = @import("Player.zig");
+const Collider = @import("Collider.zig");
 
 const key = rl.KeyboardKey;
 
@@ -14,6 +15,7 @@ pub const WorldPacket = enum {
     enemy,
     bullet,
     item,
+    static,
     // What is expected from the different anonymous structs
     //    player: struct {
     //        x: f32,
@@ -34,24 +36,28 @@ pub const WorldPacket = enum {
     //        vy: f32,
     //        damage: u8,
     //    },
+    //    static: struct {
+    //        x
+    //        y
+    //        sprite
+    //    }
 };
 
 pub const WorldItem = struct {
-    c: Collider,
+    c: Collider.Collider,
     meta: WorldItemMetadata,
     hp: u8,
 };
 
-pub const Collider = struct {
-    pos: @Vector(2, f32),
-    vel: @Vector(2, f32),
-    hitbox: @Vector(2, f16),
-    centerpoint: @Vector(2, f16),
-};
-
 pub const WorldItemMetadata = union(enum) {
     player: Textures.animation(u2),
-    bullet: u8,
+    bullet: struct {
+        damage: u8,
+        owner: enum {
+            player,
+            enemy,
+        },
+    },
     enemy: struct {
         animation: Textures.animation(u3),
         attack_type: enum(u8) {
@@ -63,6 +69,7 @@ pub const WorldItemMetadata = union(enum) {
         dt: f32,
         payload: Player.Item,
     },
+    static: *rl.Texture2D,
 };
 
 // Everything dies if there are no items in the world, fix, needs a menu to return to or something
@@ -90,11 +97,12 @@ pub fn addItem(self: *Self, item: anytype) !void {
     switch (item.type) {
         .player => {
             try self.items.append(WorldItem{
-                .c = Collider{
+                .c = .{
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @splat(0),
                     .hitbox = @splat(50),
                     .centerpoint = @splat(25),
+                    .collision = .kinetic,
                 },
                 .hp = 1,
                 .meta = WorldItemMetadata{ .player = item.animation },
@@ -102,7 +110,13 @@ pub fn addItem(self: *Self, item: anytype) !void {
         },
         .enemy => {
             try self.items.append(WorldItem{
-                .c = Collider{ .pos = @Vector(2, f32){ item.x, item.y }, .vel = @splat(0), .hitbox = @splat(50), .centerpoint = @splat(25) },
+                .c = .{
+                    .pos = @Vector(2, f32){ item.x, item.y },
+                    .vel = @splat(0),
+                    .hitbox = @splat(50),
+                    .centerpoint = @splat(25),
+                    .collision = .kinetic,
+                },
                 .hp = item.hp,
                 .meta = WorldItemMetadata{ .enemy = .{
                     .animation = item.animation,
@@ -112,26 +126,51 @@ pub fn addItem(self: *Self, item: anytype) !void {
         },
         .bullet => {
             try self.items.append(WorldItem{
-                .c = Collider{
+                .c = .{
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @Vector(2, f32){ item.vx, item.vy },
                     .hitbox = @splat(5),
                     .centerpoint = @splat(25),
+                    .collision = .kinetic,
                 },
                 .hp = item.damage,
-                .meta = WorldItemMetadata{ .bullet = item.damage },
+                .meta = WorldItemMetadata{ .bullet = .{
+                    .damage = item.damage,
+                    .owner = item.owner,
+                } },
             });
         },
         .item => {
             try self.items.append(WorldItem{
-                .c = Collider{
+                .c = .{
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @splat(0),
                     .hitbox = @splat(10),
                     .centerpoint = @splat(5),
+                    .collision = .transparent,
                 },
                 .hp = 1,
-                .meta = WorldItemMetadata{ .item = .{ .dt = 0, .payload = Player.Item{ .ammount = item.ammount, .image = item.sprite, .type = item.itemtype } } },
+                .meta = WorldItemMetadata{ .item = .{ .dt = 0, .payload = Player.Item{
+                    .ammount = item.ammount,
+                    .image = item.sprite,
+                    .type = item.itemtype,
+                } } },
+            });
+        },
+        .static => {
+            try self.items.append(WorldItem{
+                .c = .{
+                    .pos = @Vector(2, f32){ item.x, item.y },
+                    .vel = @splat(0),
+                    .hitbox = @Vector(2, f16){
+                        @as(f16, @floatFromInt(item.sprite.*.width)),
+                        @as(f16, @floatFromInt(item.sprite.*.height)),
+                    },
+                    .centerpoint = @splat(0),
+                    .collision = .static,
+                },
+                .hp = 1,
+                .meta = WorldItemMetadata{ .static = item.sprite },
             });
         },
         //else => {},
@@ -148,8 +187,6 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
 
     loop: while (len > i) : (i += 1) {
         const item = self.items.items[i];
-        self.items.items[i].c.pos += applyVelocity(self, item.c, item.meta);
-
         if (item.meta == .enemy) found_enemy = true;
 
         if (item.hp < 1) {
@@ -164,42 +201,15 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 self.items.items[i].meta.player.step(rl.getFrameTime(), item.c.vel[0] != 0 or item.c.vel[1] != 0);
 
                 // I give up just find the wierd movement and kill it
-                // This makes it akward to not be able to keep walking after changing room
-                // but is better than the alternative of breaking all movement after changing room
                 if (item.c.vel[0] > 0 and rl.isKeyUp(key.key_d)) self.items.items[i].c.vel[0] = 0;
                 if (item.c.vel[1] > 0 and rl.isKeyUp(key.key_s)) self.items.items[i].c.vel[1] = 0;
                 if (item.c.vel[0] < 0 and rl.isKeyUp(key.key_a)) self.items.items[i].c.vel[0] = 0;
                 if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
 
-                if (getOverlappingItem(item.c.pos, item.c.hitbox, .item, self.items.items)) |index| blk: {
-                    player.inventory.add(&self.items.items[index].meta.item.payload) catch {
-                        break :blk;
-                    };
-                    _ = self.items.orderedRemove(index);
-                    len -= 1;
-                }
-
                 rl.drawTextureEx(p.frames[p.current_frame], makeRlVec2(self.items.items[i].c.pos, window.origin, window.scale), 0, window.scale, rl.Color.white);
             },
             .bullet => {
-                if (item.c.pos[0] < 0 or
-                    item.c.pos[1] < 0 or
-                    item.c.pos[0] > @as(f32, @floatFromInt(self.dim[0])) or
-                    item.c.pos[1] > @as(f32, @floatFromInt(self.dim[1])))
-                {
-                    _ = self.items.orderedRemove(i);
-                    len -= 1;
-                    continue :loop;
-                }
-
                 rl.drawCircle(@as(i32, @intFromFloat(window.scale * item.c.pos[0] + window.origin[0])), @as(i32, @intFromFloat(window.scale * item.c.pos[1] + window.origin[1])), 5 * window.scale, rl.Color.pink);
-
-                // The last thing to do with the bullet is checking if it hit something
-                const index = if (getOverlappingItem(item.c.pos, item.c.hitbox, .enemy, self.items.items)) |index| index else continue :loop;
-                // for now bullets are op
-                self.items.items[index].hp -|= item.meta.bullet;
-                _ = self.items.orderedRemove(i);
-                len -= 1;
             },
             .enemy => |e| {
                 self.items.items[i].meta.enemy.animation.step(rl.getFrameTime(), true);
@@ -217,36 +227,37 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 const vpos = item.c.pos + @Vector(2, f32){ 0, 10 * @sin(x.dt) };
                 rl.drawTextureEx(x.payload.image.*, makeRlVec2(vpos, window.origin, window.scale), 0, window.scale, rl.Color.white);
             },
+            .static => |sprite| {
+                rl.drawTextureEx(sprite.*, makeRlVec2(item.c.pos, window.origin, window.scale), 0, window.scale, rl.Color.white);
+            },
+        }
+
+        // Then lastly we apply the velocity of the item
+        if (item.c.collision == .kinetic) {
+            const result = Collider.applyVelocity(&self.items.items[i].c, item.meta, self.dim, self.items.items);
+            switch (result) {
+                .kill => {
+                    _ = self.items.orderedRemove(i);
+                    len -= 1;
+                },
+                .damage => |to| {
+                    if (item.meta == .bullet) {
+                        self.items.items[to].hp -|= item.meta.bullet.damage;
+                        _ = self.items.orderedRemove(i);
+                        len -= 1;
+                    } else if (item.meta == .enemy) {
+                        // enemy stuff
+                    }
+                },
+                .pickup => |dropped_item| {
+                    player.inventory.add(&self.items.items[dropped_item].meta.item.payload) catch continue :loop;
+                    _ = self.items.orderedRemove(dropped_item);
+                    len -= 1;
+                },
+                else => {},
+            }
         }
     }
-}
-
-fn applyVelocity(world: *Self, collider: Collider, object_type: WorldItemMetadata) @Vector(2, f32) {
-    var velocity: @Vector(2, f32) = collider.vel;
-    const goal = collider.pos + collider.vel * @as(@Vector(2, f32), @splat(rl.getFrameTime()));
-    const world_w: f32 = @floatFromInt(world.dim[0]);
-    const world_h: f32 = @floatFromInt(world.dim[1]);
-    velocity[0] *= rl.getFrameTime();
-    velocity[1] *= rl.getFrameTime();
-
-    if (object_type == .player or object_type == .enemy) {
-        if (goal[0] < 0 or goal[0] + collider.hitbox[0] > world_w) velocity[0] = 0;
-        if (goal[1] < 0 or goal[1] + collider.hitbox[1] > world_h) velocity[1] = 0;
-    }
-    return velocity;
-}
-
-fn getOverlappingItem(item: @Vector(2, f32), item_size: @Vector(2, f32), goal_object: anytype, items: []WorldItem) ?usize {
-    for (items, 0..) |other_item, i| {
-        if (other_item.meta == goal_object) {
-            if (doOverlap(item[0], item[1], item_size[0], item_size[1], other_item.c.pos[0], other_item.c.pos[1], other_item.c.hitbox[0], other_item.c.hitbox[1])) return i;
-        }
-    }
-    return null;
-}
-
-fn doOverlap(x1: f32, y1: f32, w1: f32, h1: f32, x2: f32, y2: f32, w2: f32, h2: f32) bool {
-    return ((x1 < x2 + w2) and (x2 < x1 + w1) and (y1 < y2 + h2) and (y2 < y1 + h1));
 }
 
 fn makeRlVec2(v: @Vector(2, f32), offset: @Vector(2, f32), scale: f32) rl.Vector2 {
