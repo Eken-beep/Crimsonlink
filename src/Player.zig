@@ -5,8 +5,8 @@ const Self = @This();
 
 const BASEXP = 100;
 
-hp: u8,
-max_hp: u8,
+hp: u16,
+max_hp: u16,
 damage: u8,
 movementspeed: f32 = 300,
 

@@ -50,17 +50,42 @@ pub fn main() anyerror!void {
             window.update(@as(u16, @intCast(rl.getRenderWidth())), @as(u16, @intCast(rl.getRenderHeight())), 1600, 900);
         }
 
+        const mb_left: ?@Vector(2, i32) = if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) blk: {
+            break :blk @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() };
+        } else null;
+
         switch (state.state) {
             .main_menu => {
                 rl.beginDrawing();
                 defer rl.endDrawing();
                 rl.drawText("Press space to start", window.width / 2, window.height / 2, 28, color.gray);
-                if (rl.isKeyDown(rl.KeyboardKey.key_space)) {
-                    state.state = .level;
-                    try state.loadLevel(1, textures);
-                    // we only pass the textures as an argement here to add the player in the beginning
-                    world = try state.nextRoom(textures);
-                }
+                const testGuiBtn: Gui.GuiItem = .{ .btn = .{
+                    .text = "Start",
+                    .width = 300,
+                    .height = 50,
+                    .border_color = color.white,
+                    .bg_color = color.gray,
+                    .fg_color = color.black,
+                    .action = btn_launchGame,
+                } };
+                try Gui.reloadGui(
+                    &[_]Gui.GuiSegment{
+                        .{
+                            .pos = .top_middle,
+                            .columns = 1,
+                            .column_width = 300,
+                            .elements = &[_]Gui.GuiItem{
+                                .{ .spc = 300 },
+                                testGuiBtn,
+                            },
+                        },
+                    },
+                    window,
+                    mb_left,
+                    &state,
+                    textures,
+                    &world,
+                );
             },
             .level => {
                 if (world.completed) world = try state.nextRoom(textures);
@@ -78,4 +103,10 @@ pub fn main() anyerror!void {
         }
         rl.clearBackground(color.black);
     }
+}
+
+fn btn_launchGame(state: *Statemanager, textures: []rl.Texture2D, world: *World) anyerror!void {
+    state.*.state = .level;
+    try state.*.loadLevel(1, textures);
+    world.* = try state.*.nextRoom(textures);
 }
