@@ -2,7 +2,7 @@ with import <nixpkgs> { };
 
 mkShell {
     nativeBuildInputs = [
-        zig_0_11
+        zig
         xorg.libX11 
         xorg.libXinerama 
         libGL 

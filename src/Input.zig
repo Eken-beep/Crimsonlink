@@ -39,7 +39,7 @@ pub const InputState = struct {
                     try self.active_actions.append(self.keybinds.get(keycode).?);
                 }
             } else if (keycode > -501 and keycode < 501) {
-                if (rl.isKeyReleased(@as(rl.KeyboardKey, @enumFromInt(std.math.absCast(keycode))))) {
+                if (rl.isKeyReleased(@as(rl.KeyboardKey, @enumFromInt(@abs(keycode))))) {
                     try self.active_actions.append(self.keybinds.get(keycode).?);
                 }
             } else if (keycode > 500) {
@@ -47,7 +47,7 @@ pub const InputState = struct {
                     try self.active_actions.append(self.keybinds.get(keycode).?);
                 }
             } else {
-                if (rl.isMouseButtonReleased(@as(rl.MouseButton, @enumFromInt(std.math.absCast(keycode) - 501)))) {
+                if (rl.isMouseButtonReleased(@as(rl.MouseButton, @enumFromInt(@abs(keycode) - 501)))) {
                     try self.active_actions.append(self.keybinds.get(keycode).?);
                 }
             }

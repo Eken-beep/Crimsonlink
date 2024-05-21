@@ -215,7 +215,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 self.items.items[i].meta.enemy.animation.step(rl.getFrameTime(), true);
                 // This is how we do pathfinding for now
                 if (e.attack_type == .melee) {
-                    const angle = std.math.atan2(f32, item.c.pos[1] - self.items.items[0].c.pos[1], item.c.pos[0] - self.items.items[0].c.pos[0]);
+                    const angle = std.math.atan2(item.c.pos[1] - self.items.items[0].c.pos[1], item.c.pos[0] - self.items.items[0].c.pos[0]);
                     self.items.items[i].c.vel = @Vector(2, f32){ -100 * @cos(angle), -100 * @sin(angle) };
                 }
 
