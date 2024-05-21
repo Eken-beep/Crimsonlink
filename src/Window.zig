@@ -6,6 +6,10 @@ const Self = @This();
 width: u16,
 height: u16,
 scale: f32,
+gui_scale: u2 = 1,
+fontsize: i32 = 28,
+// Pixles we try to space the gui elements with
+gui_spacing: u16 = 18,
 origin: @Vector(2, f32),
 
 pub fn update(self: *Self, w: u16, h: u16, preferred_width: u16, preferred_height: u16) void {
