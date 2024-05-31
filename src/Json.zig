@@ -17,7 +17,7 @@ pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator) !Player {
         hp: u8,
         max_hp: u8,
         damage: u8,
-        dogecoins: u32,
+        dogecoins: u10,
     };
     const parsed = try std.json.parseFromSlice(
         RawPlayerData,

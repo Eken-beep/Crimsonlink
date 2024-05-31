@@ -7,7 +7,7 @@ width: u16,
 height: u16,
 scale: f32,
 gui_scale: u2 = 1,
-fontsize: i32 = 28,
+fontsize: u16 = 28,
 // Pixles we try to space the gui elements with
 gui_spacing: u16 = 18,
 origin: @Vector(2, f32),

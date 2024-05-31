@@ -33,8 +33,13 @@ pub fn main() anyerror!void {
 
     var state = Statemanager.init(gpa);
     state.level_allocator = state.level_arena.allocator();
+
     var window = Window{ .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
     var world: World = undefined;
+
+    var gui_arena: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(gpa);
+    var gui: []Gui.GuiSegment = try Gui.GuiInit(gui_arena.allocator(), Gui.GuiState.mainmenu_0);
+    gui[0].elements[1].btn.width = 300;
 
     var input_state = Input.InputState{
         .keybinds = std.AutoHashMap(i10, Input.InputAction).init(gpa),
@@ -58,28 +63,8 @@ pub fn main() anyerror!void {
             .main_menu => {
                 rl.beginDrawing();
                 defer rl.endDrawing();
-                rl.drawText("Press space to start", window.width / 2, window.height / 2, 28, color.gray);
-                const testGuiBtn: Gui.GuiItem = .{ .btn = .{
-                    .text = "Start",
-                    .width = 300,
-                    .height = 50,
-                    .border_color = color.white,
-                    .bg_color = color.gray,
-                    .fg_color = color.black,
-                    .action = btn_launchGame,
-                } };
                 try Gui.reloadGui(
-                    &[_]Gui.GuiSegment{
-                        .{
-                            .pos = .top_middle,
-                            .columns = 1,
-                            .column_width = 300,
-                            .elements = &[_]Gui.GuiItem{
-                                .{ .spc = 300 },
-                                testGuiBtn,
-                            },
-                        },
-                    },
+                    gui,
                     window,
                     mb_left,
                     &state,
@@ -88,6 +73,14 @@ pub fn main() anyerror!void {
                 );
             },
             .level => {
+                try Gui.reloadGui(
+                    gui,
+                    window,
+                    mb_left,
+                    &state,
+                    textures,
+                    &world,
+                );
                 if (world.completed) world = try state.nextRoom(textures);
                 try input_state.update();
                 try input_state.parse(&world, &player);
@@ -103,10 +96,4 @@ pub fn main() anyerror!void {
         }
         rl.clearBackground(color.black);
     }
-}
-
-fn btn_launchGame(state: *Statemanager, textures: []rl.Texture2D, world: *World) anyerror!void {
-    state.*.state = .level;
-    try state.*.loadLevel(1, textures);
-    world.* = try state.*.nextRoom(textures);
 }
