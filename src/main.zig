@@ -31,15 +31,11 @@ pub fn main() anyerror!void {
     const textures = try Textures.loadTextures(gpa);
     defer gpa.free(textures);
 
-    var state = Statemanager.init(gpa);
+    var state = try Statemanager.init(gpa, textures);
     state.level_allocator = state.level_arena.allocator();
 
     var window = Window{ .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
     var world: World = undefined;
-
-    var gui_arena: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(gpa);
-    var gui: []Gui.GuiSegment = try Gui.GuiInit(gui_arena.allocator(), Gui.GuiState.mainmenu_0);
-    gui[0].elements[1].btn.width = 300;
 
     var input_state = Input.InputState{
         .keybinds = std.AutoHashMap(i10, Input.InputAction).init(gpa),
@@ -64,23 +60,16 @@ pub fn main() anyerror!void {
                 rl.beginDrawing();
                 defer rl.endDrawing();
                 try Gui.reloadGui(
-                    gui,
+                    state.gui,
                     window,
                     mb_left,
                     &state,
                     textures,
                     &world,
+                    &player,
                 );
             },
             .level => {
-                try Gui.reloadGui(
-                    gui,
-                    window,
-                    mb_left,
-                    &state,
-                    textures,
-                    &world,
-                );
                 if (world.completed) world = try state.nextRoom(textures);
                 try input_state.update();
                 try input_state.parse(&world, &player);
@@ -90,8 +79,15 @@ pub fn main() anyerror!void {
                 rl.drawTextureEx(world.map.*, rl.Vector2.init(window.origin[0], window.origin[1]), 0, window.scale, rl.Color.white);
 
                 if (!world.paused) world.iterate(&window, &player);
-
-                try Gui.drawLevelGui(window, textures, player);
+                try Gui.reloadGui(
+                    state.gui,
+                    window,
+                    mb_left,
+                    &state,
+                    textures,
+                    &world,
+                    &player,
+                );
             },
         }
         rl.clearBackground(color.black);

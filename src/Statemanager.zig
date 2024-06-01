@@ -3,6 +3,8 @@ const rl = @import("raylib");
 const World = @import("World.zig");
 const Textures = @import("Textures.zig");
 const Json = @import("Json.zig");
+const Gui = @import("Gui.zig");
+const Player = @import("Player.zig");
 
 const Self = @This();
 
@@ -29,6 +31,8 @@ pub const State = enum {
 };
 
 state: State,
+gui: []Gui.GuiSegment,
+gui_arena: std.heap.ArenaAllocator,
 current_room: u8,
 current_level: ?Level,
 allocator: std.mem.Allocator,
@@ -36,20 +40,29 @@ allocator: std.mem.Allocator,
 level_arena: std.heap.ArenaAllocator,
 level_allocator: std.mem.Allocator,
 
-pub fn init(backing_allocator: std.mem.Allocator) Self {
-    return Self{
+pub fn init(backing_allocator: std.mem.Allocator, textures: []rl.Texture2D) !Self {
+    var result = Self{
         .state = .main_menu,
+        .gui = undefined,
+        .gui_arena = std.heap.ArenaAllocator.init(backing_allocator),
         .current_room = 1,
         .current_level = undefined,
         .allocator = backing_allocator,
         .level_arena = std.heap.ArenaAllocator.init(backing_allocator),
         .level_allocator = undefined,
     };
+    result.gui = try Gui.GuiInit(result.gui_arena.allocator(), .mainmenu_0, textures);
+    return result;
 }
 
 // The level does not manage the world, rather the layout of the rooms
-pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D) !void {
+pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D, player: *Player) !void {
     self.state = .level;
+    _ = self.gui_arena.reset(.free_all);
+    self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures);
+    self.gui[0].elements[0].hpm.source = &player.*.hp;
+    self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
+    std.debug.print("Level gui loaded", .{});
     const last_room: u8 = 5;
     const rooms = try self.allocator.alloc(Room, last_room);
     const loadedRoom = try Json.loadRoom(1, 1, self.level_allocator, textures);
