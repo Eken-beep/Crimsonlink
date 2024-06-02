@@ -8,7 +8,11 @@ const Player = @import("Player.zig");
 
 const Self = @This();
 
-const StateError = error{ NoLevel, OutOfMemory };
+const StateError = error{
+    NoLevel,
+    OutOfMemory,
+    StateNotPausable,
+};
 
 pub const Level = struct {
     id: u8,
@@ -28,6 +32,7 @@ pub const Room = struct {
 pub const State = enum {
     main_menu,
     level,
+    level_paused,
 };
 
 state: State,
@@ -62,7 +67,6 @@ pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D, player: *Player)
     self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures);
     self.gui[0].elements[0].hpm.source = &player.*.hp;
     self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
-    std.debug.print("Level gui loaded", .{});
     const last_room: u8 = 5;
     const rooms = try self.allocator.alloc(Room, last_room);
     const loadedRoom = try Json.loadRoom(1, 1, self.level_allocator, textures);
@@ -107,4 +111,20 @@ pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
         }
     }
     return StateError.NoLevel;
+}
+
+pub fn pauseLevel(self: *Self, world: *World, textures: []rl.Texture2D, player: *Player) anyerror!void {
+    //if (self.state != .level or self.state != .level_paused) return StateError.StateNotPausable;
+    world.paused = !world.paused;
+    const state: Gui.GuiState = if (world.paused) .level_paused else .level;
+    _ = self.gui_arena.reset(.free_all);
+    self.gui = try Gui.GuiInit(
+        self.gui_arena.allocator(),
+        state,
+        textures,
+    );
+    if (!world.paused) {
+        self.gui[0].elements[0].hpm.source = &player.*.hp;
+        self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
+    }
 }

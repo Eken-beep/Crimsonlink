@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 const World = @import("World.zig");
+const Window = @import("Window.zig");
 const Self = @This();
 
 const BASEXP = 100;
@@ -66,11 +67,11 @@ pub const Item = struct {
     },
 };
 
-pub fn mainAttack(self: *Self, world: *World) !void {
+pub fn mainAttack(self: *Self, world: *World, window: Window) !void {
     const player_pos = world.items.items[0].c.pos + world.items.items[0].c.centerpoint;
     const mx: f32 = @floatFromInt(rl.getMouseX());
     const my: f32 = @floatFromInt(rl.getMouseY());
-    const angle = std.math.atan2(player_pos[1] - my, player_pos[0] - mx);
+    const angle = std.math.atan2(player_pos[1] - (my - window.origin[1]) / window.scale, player_pos[0] - (mx - window.origin[0]) / window.scale);
     try world.addItem(.{
         .type = World.WorldPacket.bullet,
         .x = player_pos[0],

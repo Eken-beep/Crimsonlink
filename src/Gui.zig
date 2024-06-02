@@ -13,6 +13,7 @@ const Self = @This();
 
 pub const GuiState = enum {
     level,
+    level_paused,
 
     mainmenu_0,
     mainmenu_1,
@@ -161,7 +162,7 @@ fn drawElement(
             rl.drawText(
                 btn.text,
                 cursor[0] + btn.width / 2 - @divTrunc(txt_len, 2),
-                cursor[1] + btn.height / 2 - @divTrunc(window.fontsize, 2) - if (cursor[2] == 1) btn.height else 0,
+                cursor[1] + btn.height / 2 - @divTrunc(window.fontsize, 2) - cursor[2] * btn.height,
                 window.fontsize,
                 btn.fg_color,
             );
@@ -190,7 +191,7 @@ fn drawElement(
                 height = @intCast(h);
                 rl.drawTextureEx(
                     image.*,
-                    rl.Vector2.init(@as(f32, @floatFromInt(cursor[0])), @as(f32, @floatFromInt(cursor[1] - if (cursor[2] == 1) h else 0))),
+                    rl.Vector2.init(@as(f32, @floatFromInt(cursor[0])), @as(f32, @floatFromInt(cursor[1] - cursor[2] * h))),
                     0,
                     @as(f32, @floatFromInt(window.gui_scale)),
                     color.white,
@@ -199,18 +200,18 @@ fn drawElement(
             if (lbl.text) |text| {
                 const w: u16 = @intCast(rl.measureText(text, window.fontsize));
                 const h = window.fontsize;
-                const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
                 height = @max(h, height);
+                const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
 
-                rl.drawText(text, local_cursorx, cursor[1] + height_offset - if (cursor[2] == 1) h else 0, window.fontsize, lbl.fg_color);
+                rl.drawText(text, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
                 local_cursorx += w;
             } else if (lbl.text_source) |source| {
                 const w: u16 = @intCast(rl.measureText(source, window.fontsize));
                 const h = window.fontsize;
-                const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
                 height = @max(h, height);
+                const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
 
-                rl.drawText(source, local_cursorx, cursor[1] + height_offset - if (cursor[2] == 1) h else 0, window.fontsize, lbl.fg_color);
+                rl.drawText(source, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
                 local_cursorx += w;
             }
             return @Vector(2, u16){ local_cursorx - cursor[0], height };
@@ -223,7 +224,7 @@ fn drawElement(
                     hpm.image.*,
                     rl.Vector2.init(
                         @as(f32, @floatFromInt(local_cursorx)),
-                        @as(f32, @floatFromInt(cursor[1] - if (cursor[2] == 1) @as(u16, (@intCast(hpm.image.height))) else 0)),
+                        @as(f32, @floatFromInt(cursor[1] - cursor[2] * hpm.image.height)),
                     ),
                     0,
                     @as(f32, @floatFromInt(window.gui_scale)),
@@ -231,7 +232,7 @@ fn drawElement(
                 );
                 local_cursorx += @intCast(hpm.image.*.width);
             }
-            return @Vector(2, u16){ 0, @intCast(hpm.image.*.width) };
+            return @Vector(2, u16){ @intCast(hpm.image.*.width * hpm.source.*), @intCast(hpm.image.*.height) };
         },
         // The x here does not matter, spacers cant be in rows anyways
         .spc => |spacer| return @Vector(2, u16){ 0, spacer },
@@ -246,6 +247,9 @@ fn drawObjFrame(x: u16, y: u16, w: u16, h: u16, bgc: rl.Color, bc: rl.Color, sca
 
 // The third item in the vector sets the sort order, bottom up or top down
 // 0 => top-down 1 => bottom-up
+
+// TODO the right and middle sorting buttons don't start in the correct position,
+// should start based on not only the cursor but also the element size
 fn getCursorStart(pos: Position, column_size: u16, window: Window) @Vector(3, u16) {
     return switch (pos) {
         .top_left => @Vector(3, u16){
@@ -288,6 +292,7 @@ fn getCursorStart(pos: Position, column_size: u16, window: Window) @Vector(3, u1
 // out when we need to break the line and begin the next one, useful in menus and stuff
 
 pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Texture2D) ![]GuiSegment {
+    std.debug.print("Loaded gui state {any}\n", .{state});
     switch (state) {
         .level => {
             var result = try allocator.alloc(GuiSegment, 1);
@@ -337,6 +342,42 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Tex
             return result;
         },
 
+        .level_paused => {
+            // Pause text
+            var result = try allocator.alloc(GuiSegment, 2);
+            result[0] = .{
+                .pos = .bottom_right,
+                .columns = 1,
+                .column_width = 130,
+                .elements = try allocator.alloc(GuiItem, 1),
+            };
+            result[0].elements[0] = .{ .lbl = .{
+                .fg_color = color.gray,
+                .image = null,
+                .text_source = null,
+                .text = "Paused",
+            } };
+
+            // Main buttons
+            result[1] = .{
+                .pos = .top_middle,
+                .columns = 1,
+                .column_width = 300,
+                .elements = try allocator.alloc(GuiItem, 2),
+            };
+            result[1].elements[0] = .{ .spc = 300 };
+            result[1].elements[1] = .{ .btn = .{
+                .bg_color = color.gray,
+                .fg_color = color.black,
+                .border_color = color.white,
+                .text = "Resume Game",
+                .width = 300,
+                .height = 50,
+                .action = btn_unpauseGame,
+            } };
+            return result;
+        },
+
         else => return error.IncorrectGuiState,
     }
 }
@@ -346,31 +387,6 @@ fn btn_launchGame(state: *Statemanager, textures: []rl.Texture2D, world: *World,
     try state.*.loadLevel(1, textures, player);
     world.* = try state.*.nextRoom(textures);
 }
-
-// This is gonna go to hell when i'm done with the proper gui thing
-pub fn drawLevelGui(window: Window, textures: []rl.Texture2D, player: Player) !void {
-    const s = window.scale;
-
-    // HP
-    for (0..player.hp) |i| {
-        const fi: f32 = @floatFromInt(i);
-        rl.drawTextureEx(textures[Textures.sprite.heart], rl.Vector2.init((10 + 90 * fi) * s, 10 * s), 0, s, rl.Color.white);
-    }
-
-    // Money
-    rl.drawTextureEx(
-        textures[Textures.sprite.dogecoin],
-        rl.Vector2.init(10 * s, 20 * s + @as(f32, @floatFromInt(textures[Textures.sprite.heart].height)) * s),
-        0,
-        s * 0.5,
-        rl.Color.white,
-    );
-    var coin_buffer: [3:0]u8 = undefined;
-    rl.drawText(
-        try std.fmt.bufPrintZ(&coin_buffer, "{d}", .{player.inventory.dogecoins}),
-        @as(i32, @intFromFloat(10 * s)) + @divFloor(textures[Textures.sprite.dogecoin].height, 2),
-        @as(i32, @intFromFloat(@as(f32, @floatFromInt(textures[Textures.sprite.heart].height)) * s + 30 * s)),
-        28,
-        rl.Color.gray,
-    );
+fn btn_unpauseGame(state: *Statemanager, textures: []rl.Texture2D, world: *World, player: *Player) anyerror!void {
+    try state.pauseLevel(world, textures, player);
 }

@@ -47,7 +47,7 @@
 
 
     {
-        "key": 32,
+        "key": 256,
         "action": "pause"
     }
 ]

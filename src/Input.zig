@@ -2,6 +2,8 @@ const std = @import("std");
 const rl = @import("raylib");
 const World = @import("World.zig");
 const Player = @import("Player.zig");
+const Window = @import("Window.zig");
+const Statemanager = @import("Statemanager.zig");
 
 const key = rl.KeyboardKey;
 
@@ -54,7 +56,7 @@ pub const InputState = struct {
         }
     }
 
-    pub fn parse(self: *Self, world: *World, player: *Player) !void {
+    pub fn parse(self: *Self, world: *World, player: *Player, window: Window, state: *Statemanager, textures: []rl.Texture2D) !void {
         while (self.active_actions.items.len > 0) {
             switch (self.active_actions.pop()) {
                 .moveup => world.items.items[0].c.vel += @Vector(2, f32){ 0, -player.movementspeed },
@@ -68,9 +70,9 @@ pub const InputState = struct {
                 .haltright => world.items.items[0].c.vel += @Vector(2, f32){ -player.movementspeed, 0 },
 
                 // Shooting
-                .shoot_begin => try player.mainAttack(world),
+                .shoot_begin => try player.mainAttack(world, window),
 
-                .pause => world.paused = !world.paused,
+                .pause => try state.pauseLevel(world, textures, player),
                 else => {},
             }
         }

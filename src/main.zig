@@ -46,6 +46,7 @@ pub fn main() anyerror!void {
     var player = try Json.loadPlayerData(null, gpa);
 
     while (!rl.windowShouldClose()) {
+        rl.setExitKey(rl.KeyboardKey.key_null);
         if (rl.isWindowResized()) {
             // isn't going to overflow as u16 anyways so who cares
             window.update(@as(u16, @intCast(rl.getRenderWidth())), @as(u16, @intCast(rl.getRenderHeight())), 1600, 900);
@@ -72,7 +73,7 @@ pub fn main() anyerror!void {
             .level => {
                 if (world.completed) world = try state.nextRoom(textures);
                 try input_state.update();
-                try input_state.parse(&world, &player);
+                try input_state.parse(&world, &player, window, &state, textures);
                 rl.beginDrawing();
                 defer rl.endDrawing();
 
@@ -89,6 +90,7 @@ pub fn main() anyerror!void {
                     &player,
                 );
             },
+            else => {},
         }
         rl.clearBackground(color.black);
     }
