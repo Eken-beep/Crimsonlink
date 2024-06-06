@@ -8,6 +8,7 @@ pub const Collider = struct {
     hitbox: @Vector(2, f16),
     centerpoint: @Vector(2, f16),
     collision: ColliderType,
+    effect: @Vector(2, f32) = @splat(0),
 };
 
 const ColliderType = enum {
@@ -19,10 +20,19 @@ const ColliderType = enum {
 // The usizes here reference the object to be affected by it
 const Resolution = union(enum) {
     none,
-    stop,
-    damage: usize,
     kill,
+    spread,
     pickup: usize,
+    stop: Direction,
+    damage: usize,
+};
+
+const Direction = enum {
+    up,
+    down,
+    left,
+    right,
+    invalid,
 };
 
 // TODO
@@ -35,6 +45,7 @@ pub fn applyVelocity(
 ) Resolution {
     var resolution_result: Resolution = .none;
     var velocity: @Vector(2, f32) = collider.vel;
+    // The fact that whether or not the enemies are pushed aside are checked for collision will surely lead to some intreseting bugs I can't be bothered to fix now
     const goal = collider.pos + collider.vel * @as(@Vector(2, f32), @splat(rl.getFrameTime()));
     const world_w: f32 = @floatFromInt(world_size[0]);
     const world_h: f32 = @floatFromInt(world_size[1]);
@@ -53,7 +64,12 @@ pub fn applyVelocity(
                 item.c.pos[1],
                 item.c.hitbox[0],
                 item.c.hitbox[1],
-            )) resolution_result = resolve(collider.*, object_type, item.c, i, item.meta);
+            )) {
+                resolution_result = resolve(collider.*, object_type, item.c, i, item.meta);
+                if (resolution_result == .spread) {
+                    velocity += makeOppositeVelocities(collider.*, item.c);
+                }
+            }
         }
     }
 
@@ -68,14 +84,55 @@ pub fn applyVelocity(
                 collider.pos[1] > world_h) resolution_result = Resolution.kill;
         }
     } else {
-        // TODO
-        // dont kill the entire velocity here but make the kinetic object slide instead
-        velocity = @splat(0);
+        std.debug.print("{any}\n", .{resolution_result.stop});
+        velocity = getClearedVectorComponent(velocity, resolution_result.stop);
     }
     collider.pos += velocity;
 
     // Will just be none if nothing happened
     return resolution_result;
+}
+
+// This produces the spread between objects who collide but don't affect eachother
+fn makeOppositeVelocities(a: Collider, b: Collider) @Vector(2, f32) {
+    const angle = std.math.atan2(a.pos[1] - b.pos[1], a.pos[0] - b.pos[0]);
+    return @Vector(2, f32){
+        @cos(angle) * 0.3,
+        @sin(angle) * 0.3,
+    };
+}
+
+fn getCollisionDirection(c1: Collider, c2: Collider) Direction {
+    const c1c = getColliderCorners(c1);
+    const c2c = getColliderCorners(c2);
+
+    if (c1c[1][1] > c2c[2][1]) return .up;
+    if (c1c[2][1] < c2c[1][1]) return .down;
+
+    if (c1c[1][0] > c2c[0][0]) return .left;
+    if (c1c[0][0] < c2c[1][0]) return .right;
+    return .invalid;
+}
+
+fn getColliderCorners(c: Collider) [4]@Vector(2, f32) {
+    // The corners of each collider
+    // laid out like the quadrants of a coordinate system
+    return [4]@Vector(2, f32){
+        c.pos + @Vector(2, f32){ c.hitbox[0], 0 },
+        c.pos,
+        c.pos + @Vector(2, f32){ 0, c.hitbox[1] },
+        c.pos + c.hitbox,
+    };
+}
+
+// Would be kinda fun to have non-rectangular colliders here
+// but that would require proper trigonometry and more complex systems to describe objects
+fn getClearedVectorComponent(v: @Vector(2, f32), direction: Direction) @Vector(2, f32) {
+    return switch (direction) {
+        .up, .down => @Vector(2, f32){ v[0], 0 },
+        .left, .right => @Vector(2, f32){ 0, v[1] },
+        else => v,
+    };
 }
 
 // Given there is a collision, what should we do?
@@ -98,7 +155,8 @@ fn resolve(
             return Resolution{ .damage = b_index };
         }
     }
-    if (a.collision == .kinetic and b.collision == .static) return .stop;
+    if (a.collision == .kinetic and b.collision == .kinetic) return .spread;
+    if (a.collision == .kinetic and b.collision == .static) return .{ .stop = getCollisionDirection(a, b) };
     // As long as it isn't an enemy and player colliding
     if (a.collision == b.collision) {
         if (a_meta == .enemy and b_meta == .player) return Resolution{ .damage = b_index } else return .none;
