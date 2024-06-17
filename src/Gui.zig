@@ -305,13 +305,13 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Tex
             result[0].elements = try allocator.alloc(GuiItem, 3);
             result[0].elements[0] = .{ .hpm = .{
                 .source = undefined,
-                .image = &textures[Textures.sprite.heart],
+                .image = &textures[Textures.getImageId("heart")[0]],
             } };
             result[0].elements[1] = .{ .spc = 20 };
             result[0].elements[2] = .{
                 .lbl = .{
                     .fg_color = color.white,
-                    .image = &textures[Textures.sprite.dogecoin],
+                    .image = &textures[Textures.getImageId("doge")[0]],
                     .text = null,
                     // Remember changing these after loading the gui
                     .text_source = null,
@@ -385,7 +385,7 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Tex
 fn btn_launchGame(state: *Statemanager, textures: []rl.Texture2D, world: *World, player: *Player) anyerror!void {
     state.*.state = .level;
     try state.*.loadLevel(1, textures, player);
-    world.* = try state.*.nextRoom(textures);
+    world.* = try state.*.nextRoom(textures, player);
 }
 fn btn_unpauseGame(state: *Statemanager, textures: []rl.Texture2D, world: *World, player: *Player) anyerror!void {
     try state.pauseLevel(world, textures, player);

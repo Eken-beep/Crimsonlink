@@ -1,7 +1,6 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-// change these to arrays
 const images = [_][:0]const u8{
     // Maps
     "assets/betamap1.png",
@@ -10,6 +9,7 @@ const images = [_][:0]const u8{
     // Static sprites
     "assets/heart.png",
     "assets/doge.png",
+    "assets/gun/Gun 1.png",
 
     // Characters
     "assets/player/MainCharacter1.png",
@@ -36,20 +36,26 @@ const images = [_][:0]const u8{
     "assets/enemies/slug/slug_8.png",
 };
 
-pub const animation_bound = struct {
-    s: u8,
-    l: u8,
-};
-pub const sprite = .{
-    .maps = animation_bound{ .s = 0, .l = 2 },
-    .player = animation_bound{ .s = 4, .l = 4 },
-    .heart = 2,
-    .dogecoin = 3,
-    .enemies = .{
-        .blooby = animation_bound{ .s = 8, .l = 8 },
-        .slug = animation_bound{ .s = 16, .l = 8 },
-    },
-};
+pub fn getImageId(comptime search: []const u8) [2]usize {
+    @setEvalBranchQuota(2000);
+    comptime var start = 0;
+    comptime var end = 0;
+    comptime var set = false;
+    inline for (images, 0..) |image_path, image_index| {
+        inline for (image_path, 0..) |char, i| {
+            if (char == search[0] and i + search.len < image_path.len) {
+                if (comptime std.mem.eql(u8, search, image_path[i .. i + search.len])) {
+                    if (!set) {
+                        start = image_index;
+                        set = true;
+                    } else end = image_index;
+                }
+            }
+        }
+    }
+    // Think this is because ranges are non-inclusive on upper bound
+    return [2]usize{ start, end + 1 };
+}
 
 pub fn loadTextures(allocator: std.mem.Allocator) ![]rl.Texture2D {
     var image_buffer = try allocator.alloc(rl.Image, images.len);

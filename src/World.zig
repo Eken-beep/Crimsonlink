@@ -21,6 +21,8 @@ pub const WorldPacket = enum {
     //        x: f32,
     //        y: f32,
     //        img: []rl.Texture2D,
+    //        weapon: Item.Weapon,
+    //        weapon_mount: @Vector(2, f16),
     //    },
     //    enemy: struct {
     //        x: f32,
@@ -46,13 +48,13 @@ pub const WorldPacket = enum {
 pub const WorldItem = struct {
     c: Collider.Collider,
     meta: WorldItemMetadata,
-    hp: u8,
+    hp: u16,
 };
 
 pub const WorldItemMetadata = union(enum) {
     player: Textures.animation(u2),
     bullet: struct {
-        damage: u8,
+        damage: u16,
         owner: enum {
             player,
             enemy,
@@ -103,6 +105,8 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .hitbox = @splat(50),
                     .centerpoint = @splat(25),
                     .collision = .kinetic,
+                    .weapon = item.weapon,
+                    .weapon_mount = @Vector(2, f16){ 10, 10 },
                 },
                 .hp = 1,
                 .meta = WorldItemMetadata{ .player = item.animation },
@@ -195,6 +199,18 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
             continue :loop;
         }
 
+        if (item.c.weapon_mount) |weapon_mountpoint| {
+            if (item.c.weapon) |weapon| {
+                rl.drawTextureEx(
+                    weapon.texture.*,
+                    makeRlVec2(item.c.pos, weapon_mountpoint, window.scale),
+                    0,
+                    window.scale,
+                    rl.Color.white,
+                );
+            }
+        }
+
         switch (item.meta) {
             .player => |p| {
                 // check if velocity isn't 0 to check for movement
@@ -206,10 +222,21 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 if (item.c.vel[0] < 0 and rl.isKeyUp(key.key_a)) self.items.items[i].c.vel[0] = 0;
                 if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
 
-                rl.drawTextureEx(p.frames[p.current_frame], makeRlVec2(self.items.items[i].c.pos, window.origin, window.scale), 0, window.scale, rl.Color.white);
+                rl.drawTextureEx(
+                    p.frames[p.current_frame],
+                    makeRlVec2(self.items.items[i].c.pos, window.origin, window.scale),
+                    0,
+                    window.scale,
+                    rl.Color.white,
+                );
             },
             .bullet => {
-                rl.drawCircle(@as(i32, @intFromFloat(window.scale * item.c.pos[0] + window.origin[0])), @as(i32, @intFromFloat(window.scale * item.c.pos[1] + window.origin[1])), 5 * window.scale, rl.Color.pink);
+                rl.drawCircle(
+                    @as(i32, @intFromFloat(window.scale * item.c.pos[0] + window.origin[0])),
+                    @as(i32, @intFromFloat(window.scale * item.c.pos[1] + window.origin[1])),
+                    5 * window.scale,
+                    rl.Color.pink,
+                );
             },
             .enemy => |e| {
                 self.items.items[i].meta.enemy.animation.step(rl.getFrameTime(), true);
@@ -219,22 +246,45 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                     self.items.items[i].c.vel = @Vector(2, f32){ -100 * @cos(angle), -100 * @sin(angle) };
                 }
 
-                rl.drawTextureEx(e.animation.frames[e.animation.current_frame], makeRlVec2(item.c.pos, window.origin, window.scale), 0, window.scale, rl.Color.white);
+                rl.drawTextureEx(
+                    e.animation.frames[e.animation.current_frame],
+                    makeRlVec2(item.c.pos, window.origin, window.scale),
+                    0,
+                    window.scale,
+                    rl.Color.white,
+                );
             },
             .item => |x| {
                 self.items.items[i].meta.item.dt += rl.getFrameTime();
                 // Bouncy item
                 const vpos = item.c.pos + @Vector(2, f32){ 0, 10 * @sin(x.dt) };
-                rl.drawTextureEx(x.payload.image.*, makeRlVec2(vpos, window.origin, window.scale), 0, window.scale, rl.Color.white);
+                rl.drawTextureEx(
+                    x.payload.image.*,
+                    makeRlVec2(vpos, window.origin, window.scale),
+                    0,
+                    window.scale,
+                    rl.Color.white,
+                );
             },
             .static => |sprite| {
-                rl.drawTextureEx(sprite.*, makeRlVec2(item.c.pos, window.origin, window.scale), 0, window.scale, rl.Color.white);
+                rl.drawTextureEx(
+                    sprite.*,
+                    makeRlVec2(item.c.pos, window.origin, window.scale),
+                    0,
+                    window.scale,
+                    rl.Color.white,
+                );
             },
         }
 
         // Then lastly we apply the velocity of the item
         if (item.c.collision == .kinetic) {
-            const result = Collider.applyVelocity(&self.items.items[i].c, item.meta, self.dim, self.items.items);
+            const result = Collider.applyVelocity(
+                &self.items.items[i].c,
+                item.meta,
+                self.dim,
+                self.items.items,
+            );
             switch (result) {
                 .kill => {
                     _ = self.items.orderedRemove(i);

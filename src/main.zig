@@ -43,7 +43,7 @@ pub fn main() anyerror!void {
     };
     try Json.loadKeybindings(null, &input_state.keybinds, gpa);
 
-    var player = try Json.loadPlayerData(null, gpa);
+    var player = try Json.loadPlayerData(null, gpa, textures);
 
     while (!rl.windowShouldClose()) {
         rl.setExitKey(rl.KeyboardKey.key_null);
@@ -71,7 +71,7 @@ pub fn main() anyerror!void {
                 );
             },
             .level => {
-                if (world.completed) world = try state.nextRoom(textures);
+                if (world.completed) world = try state.nextRoom(textures, &player);
                 try input_state.update();
                 try input_state.parse(&world, &player, window, &state, textures);
                 rl.beginDrawing();

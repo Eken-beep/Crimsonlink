@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 const World = @import("World.zig");
+const Items = @import("Items.zig");
 
 pub const Collider = struct {
     pos: @Vector(2, f32),
@@ -9,6 +10,12 @@ pub const Collider = struct {
     centerpoint: @Vector(2, f16),
     collision: ColliderType,
     effect: @Vector(2, f32) = @splat(0),
+    // These two are only here because many different world objects can have weapons
+    // Should be null on everything that can't wield a weapon
+    // If this is null then the guy is permanently barehanded
+    weapon_mount: ?@Vector(2, f16) = null,
+    // However only this being null means he is temporarily barehanded
+    weapon: ?Items.Weapon = null,
 };
 
 const ColliderType = enum {
@@ -35,8 +42,6 @@ const Direction = enum {
     invalid,
 };
 
-// TODO
-// apply a linear velocity to kinetic objects inside eachother to avoid deathstacks
 pub fn applyVelocity(
     collider: *Collider,
     object_type: World.WorldItemMetadata,
@@ -153,9 +158,19 @@ fn resolve(
             return Resolution{ .damage = b_index };
         } else if (a_meta.bullet.owner == .player and b_meta == .enemy) {
             return Resolution{ .damage = b_index };
+            // We do the following to break the function before checking if spread should happen, no spread with bullets
+        } else if (a_meta.bullet.owner == .player and b_meta == .player) {
+            return .none;
+        } else if (a_meta.bullet.owner == .enemy and b_meta == .enemy) {
+            return .none;
         }
     }
-    if (a.collision == .kinetic and b.collision == .kinetic) return .spread;
+    // Just check one way between bullet and kinetic
+    if (b_meta == .bullet and a.collision == .kinetic) return .none;
+    if (a.collision == .kinetic and b.collision == .kinetic) {
+        if (a_meta == .bullet and b_meta == .bullet) return .none;
+        return .spread;
+    }
     if (a.collision == .kinetic and b.collision == .static) return .{ .stop = getCollisionDirection(a, b) };
     // As long as it isn't an enemy and player colliding
     if (a.collision == b.collision) {

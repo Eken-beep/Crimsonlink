@@ -95,18 +95,31 @@ pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D, player: *Player)
     self.current_room = 0;
 }
 
-pub fn nextRoom(self: *Self, textures: []rl.Texture2D) StateError!World {
+pub fn nextRoom(self: *Self, textures: []rl.Texture2D, player: *Player) StateError!World {
     if (self.current_level) |level| {
         _ = self.current_level.?.arena.reset(.free_all);
         if (self.current_room < level.last_room) {
             self.current_room += 1;
             // use the dimensions stored in the level
-            var room = try World.init(level.rooms[self.current_room].dimensions, &textures[1], self.current_level.?.allocator);
-            try room.addItem(.{ .type = World.WorldPacket.player, .x = 400, .y = 200, .animation = Textures.animation(u2).init(0.5, textures[4..8]) });
+            var room = try World.init(
+                level.rooms[self.current_room].dimensions,
+                &textures[Textures.getImageId("betamap2")[0]],
+                self.current_level.?.allocator,
+            );
+            try room.addItem(.{
+                .type = World.WorldPacket.player,
+                .x = 400,
+                .y = 200,
+                .animation = Textures.animation(u2).init(
+                    0.5,
+                    textures[Textures.getImageId("MainCharacter")[0]..Textures.getImageId("MainCharacter")[1]],
+                ),
+                .weapon = player.forehand,
+            });
             try room.items.appendSlice(level.rooms[self.current_room].enemies);
             // Placeholder texture
-            try room.addItem(.{ .type = World.WorldPacket.item, .x = 500, .y = 50, .sprite = &textures[Textures.sprite.dogecoin], .itemtype = .money, .ammount = 5 });
-            try room.addItem(.{ .type = World.WorldPacket.static, .x = 800, .y = 100, .sprite = &textures[Textures.sprite.dogecoin] });
+            try room.addItem(.{ .type = World.WorldPacket.item, .x = 500, .y = 50, .sprite = &textures[Textures.getImageId("doge")[0]], .itemtype = .money, .ammount = 5 });
+            try room.addItem(.{ .type = World.WorldPacket.static, .x = 800, .y = 100, .sprite = &textures[Textures.getImageId("doge")[0]] });
             return room;
         }
     }

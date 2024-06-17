@@ -6,13 +6,14 @@ const Statemanager = @import("Statemanager.zig");
 const EnemyTypes = @import("EnemyTypes.zig");
 const Textures = @import("Textures.zig");
 const Input = @import("Input.zig");
+const Items = @import("Items.zig");
 
 const DefaultPlayerData = @embedFile("data/StandardPlayer.json");
 const DefaultKeybinds = @embedFile("data/DefaultBindings.json");
 
 const json = std.json;
 
-pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator) !Player {
+pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) !Player {
     const RawPlayerData = struct {
         hp: u8,
         max_hp: u8,
@@ -26,7 +27,19 @@ pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator) !Player {
         .{},
     );
     const v = parsed.value;
-    return Player{ .hp = v.hp, .max_hp = v.max_hp, .damage = v.damage, .inventory = .{ .dogecoins = v.dogecoins, .items = [1]?Player.Item{null} ** 10 } };
+    return Player{
+        .hp = v.hp,
+        .max_hp = v.max_hp,
+        .damage = v.damage,
+        .hand_placement = @Vector(2, f32){ 10, 10 },
+        .forehand = blk: {
+            var tmp = Items.Weapons.Gun1;
+            tmp.texture = &textures[Textures.getImageId(Items.Weapons.Gun1.name)[0]];
+
+            break :blk tmp;
+        },
+        .inventory = .{ .dogecoins = v.dogecoins, .items = [1]?Player.Item{null} ** 10 },
+    };
 }
 
 const ConfigParseError = error{InvalidKeyConfig};
@@ -89,7 +102,7 @@ pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, texture
             },
             .hp = enemy_data.hp,
             .meta = World.WorldItemMetadata{ .enemy = .{
-                .animation = Textures.animation(u3).init(0.2, textures[enemy_data.animation.s .. enemy_data.animation.s + enemy_data.animation.l]),
+                .animation = Textures.animation(u3).init(0.2, textures[enemy_data.animation[0]..enemy_data.animation[1]]),
                 .attack_type = @enumFromInt(enemy_data.attack_type),
             } },
         };

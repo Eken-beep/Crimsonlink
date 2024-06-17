@@ -2,6 +2,8 @@ const std = @import("std");
 const rl = @import("raylib");
 const World = @import("World.zig");
 const Window = @import("Window.zig");
+const Items = @import("Items.zig");
+
 const Self = @This();
 
 const BASEXP = 100;
@@ -10,6 +12,9 @@ hp: u16,
 max_hp: u16,
 damage: u8,
 movementspeed: f32 = 300,
+
+forehand: Items.Weapon,
+hand_placement: @Vector(2, f16),
 
 inventory: struct {
     const Inventory = @This();
@@ -68,17 +73,16 @@ pub const Item = struct {
 };
 
 pub fn mainAttack(self: *Self, world: *World, window: Window) !void {
-    const player_pos = world.items.items[0].c.pos + world.items.items[0].c.centerpoint;
     const mx: f32 = @floatFromInt(rl.getMouseX());
     const my: f32 = @floatFromInt(rl.getMouseY());
-    const angle = std.math.atan2(player_pos[1] - (my - window.origin[1]) / window.scale, player_pos[0] - (mx - window.origin[0]) / window.scale);
-    try world.addItem(.{
-        .type = World.WorldPacket.bullet,
-        .x = player_pos[0],
-        .y = player_pos[1],
-        .vx = -1000 * @cos(angle),
-        .vy = -1000 * @sin(angle),
-        .damage = self.damage,
-        .owner = .player,
-    });
+    try world.items.append(if (world.items.items[0].c.weapon) |weapon| switch (weapon.range) {
+        .melee => unreachable,
+        .range => Items.makeBullet(
+            self.forehand,
+            world.items.items[0],
+            @Vector(2, f32){ mx, my },
+            window.origin,
+            window.scale,
+        ),
+    } else return error.NoWeapon);
 }
