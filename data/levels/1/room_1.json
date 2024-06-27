@@ -1,0 +1,42 @@
+{
+    "roomtype":"normal",
+    "width":1600,
+    "height":900,
+    "enemies": [
+        {
+            "type":"slug",
+            "x":449,
+            "y":775
+        },
+        {
+            "type":"slug",
+            "x":1362,
+            "y":759
+        },
+        {
+            "type":"blooby",
+            "x":1454,
+            "y":123
+        },
+        {
+            "type":"blooby",
+            "x":1021,
+            "y":399
+        },
+        {
+            "type":"blooby",
+            "x":622,
+            "y":125
+        },
+        {
+            "type":"slug",
+            "x":988,
+            "y":682
+        },
+        {
+            "type":"slug",
+            "x":1387,
+            "y":409
+        }
+    ]
+}

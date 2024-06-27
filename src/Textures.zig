@@ -5,6 +5,7 @@ const images = [_][:0]const u8{
     // Maps
     "assets/betamap1.png",
     "assets/betamap2.png",
+    "assets/Room_standard_W1_Scaled.png",
 
     // Static sprites
     "assets/heart.png",

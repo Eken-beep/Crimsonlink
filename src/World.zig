@@ -10,6 +10,9 @@ const key = rl.KeyboardKey;
 
 const Self = @This();
 
+const PLAYERSPRITEWIDTH = 32;
+const DRAW_HITBOXES = true;
+
 pub const WorldPacket = enum {
     player,
     enemy,
@@ -102,11 +105,12 @@ pub fn addItem(self: *Self, item: anytype) !void {
                 .c = .{
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @splat(0),
-                    .hitbox = @splat(50),
-                    .centerpoint = @splat(25),
+                    .hitbox = @Vector(2, f16){ 18 * 4, 52 * 4 },
+                    .centerpoint = @Vector(2, f16){ 9 * 4, 26 * 4 },
                     .collision = .kinetic,
+                    .texture_offset = @Vector(2, f16){ -PLAYERSPRITEWIDTH, 0 },
                     .weapon = item.weapon,
-                    .weapon_mount = @Vector(2, f16){ 10, 10 },
+                    .weapon_mount = @Vector(2, f16){ 36, 104 },
                 },
                 .hp = 1,
                 .meta = WorldItemMetadata{ .player = item.animation },
@@ -120,6 +124,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .hitbox = @splat(50),
                     .centerpoint = @splat(25),
                     .collision = .kinetic,
+                    .texture_offset = @splat(0),
                 },
                 .hp = item.hp,
                 .meta = WorldItemMetadata{ .enemy = .{
@@ -136,6 +141,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .hitbox = @splat(5),
                     .centerpoint = @splat(25),
                     .collision = .kinetic,
+                    .texture_offset = @Vector(2, f16){ 5, 5 },
                 },
                 .hp = item.damage,
                 .meta = WorldItemMetadata{ .bullet = .{
@@ -152,6 +158,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .hitbox = @splat(10),
                     .centerpoint = @splat(5),
                     .collision = .transparent,
+                    .texture_offset = @splat(0),
                 },
                 .hp = 1,
                 .meta = WorldItemMetadata{ .item = .{ .dt = 0, .payload = Player.Item{
@@ -172,6 +179,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     },
                     .centerpoint = @splat(0),
                     .collision = .static,
+                    .texture_offset = @splat(0),
                 },
                 .hp = 1,
                 .meta = WorldItemMetadata{ .static = item.sprite },
@@ -199,18 +207,6 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
             continue :loop;
         }
 
-        if (item.c.weapon_mount) |weapon_mountpoint| {
-            if (item.c.weapon) |weapon| {
-                rl.drawTextureEx(
-                    weapon.texture.*,
-                    makeRlVec2(item.c.pos, weapon_mountpoint, window.scale),
-                    0,
-                    window.scale,
-                    rl.Color.white,
-                );
-            }
-        }
-
         switch (item.meta) {
             .player => |p| {
                 // check if velocity isn't 0 to check for movement
@@ -224,16 +220,16 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
 
                 rl.drawTextureEx(
                     p.frames[p.current_frame],
-                    makeRlVec2(self.items.items[i].c.pos, window.origin, window.scale),
+                    makeRlVec2(self.items.items[i].c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
-                    window.scale,
+                    window.scale * Window.PXSCALE,
                     rl.Color.white,
                 );
             },
             .bullet => {
                 rl.drawCircle(
-                    @as(i32, @intFromFloat(window.scale * item.c.pos[0] + window.origin[0])),
-                    @as(i32, @intFromFloat(window.scale * item.c.pos[1] + window.origin[1])),
+                    @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                    @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
                     5 * window.scale,
                     rl.Color.pink,
                 );
@@ -248,9 +244,9 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
 
                 rl.drawTextureEx(
                     e.animation.frames[e.animation.current_frame],
-                    makeRlVec2(item.c.pos, window.origin, window.scale),
+                    makeRlVec2(item.c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
-                    window.scale,
+                    window.scale * Window.PXSCALE,
                     rl.Color.white,
                 );
             },
@@ -260,25 +256,45 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                 const vpos = item.c.pos + @Vector(2, f32){ 0, 10 * @sin(x.dt) };
                 rl.drawTextureEx(
                     x.payload.image.*,
-                    makeRlVec2(vpos, window.origin, window.scale),
+                    makeRlVec2(vpos + item.c.texture_offset, window.origin, window.scale),
                     0,
-                    window.scale,
+                    window.scale * Window.PXSCALE,
                     rl.Color.white,
                 );
             },
             .static => |sprite| {
+                if (DRAW_HITBOXES) drawHitbox(
+                    item.c.hitbox * @as(@Vector(2, f32), @splat(window.scale)),
+                    (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
+                );
                 rl.drawTextureEx(
                     sprite.*,
-                    makeRlVec2(item.c.pos, window.origin, window.scale),
+                    makeRlVec2(item.c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
-                    window.scale,
+                    window.scale * Window.PXSCALE,
                     rl.Color.white,
                 );
             },
         }
 
+        if (item.c.weapon_mount) |weapon_mountpoint| {
+            if (item.c.weapon) |weapon| {
+                rl.drawTextureEx(
+                    weapon.texture.*,
+                    makeRlVec2(item.c.pos + weapon_mountpoint - item.c.weapon.?.handle, window.origin, window.scale),
+                    0,
+                    window.scale * Window.PXSCALE,
+                    rl.Color.white,
+                );
+            }
+        }
+
         // Then lastly we apply the velocity of the item
         if (item.c.collision == .kinetic) {
+            if (DRAW_HITBOXES) drawHitbox(
+                item.c.hitbox * @as(@Vector(2, f32), @splat(window.scale)),
+                (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
+            );
             const result = Collider.applyVelocity(
                 &self.items.items[i].c,
                 item.meta,
@@ -308,6 +324,14 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
             }
         }
     }
+}
+
+fn drawHitbox(hb: @Vector(2, f32), pos: @Vector(2, f32)) void {
+    const x: i32 = @intFromFloat(pos[0]);
+    const y: i32 = @intFromFloat(pos[1]);
+    const w: i32 = @intFromFloat(hb[0]);
+    const h: i32 = @intFromFloat(hb[1]);
+    rl.drawRectangleLines(x, y, w, h, rl.Color.pink);
 }
 
 fn makeRlVec2(v: @Vector(2, f32), offset: @Vector(2, f32), scale: f32) rl.Vector2 {

@@ -77,7 +77,7 @@ pub fn main() anyerror!void {
                 rl.beginDrawing();
                 defer rl.endDrawing();
 
-                rl.drawTextureEx(world.map.*, rl.Vector2.init(window.origin[0], window.origin[1]), 0, window.scale, rl.Color.white);
+                rl.drawTextureEx(world.map.*, rl.Vector2.init(window.origin[0], window.origin[1]), 0, window.scale * 4, rl.Color.white);
 
                 if (!world.paused) world.iterate(&window, &player);
                 try Gui.reloadGui(

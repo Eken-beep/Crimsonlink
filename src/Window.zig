@@ -3,6 +3,10 @@ const rl = @import("raylib");
 
 const Self = @This();
 
+// The ammount we scale each pixle no matter the window size
+pub const PXSCALE = 4;
+pub const WALLSIZE = 18 * PXSCALE;
+
 width: u16,
 height: u16,
 scale: f32,

@@ -2,6 +2,7 @@ const std = @import("std");
 const rl = @import("raylib");
 const World = @import("World.zig");
 const Items = @import("Items.zig");
+const Window = @import("Window.zig");
 
 pub const Collider = struct {
     pos: @Vector(2, f32),
@@ -9,6 +10,7 @@ pub const Collider = struct {
     hitbox: @Vector(2, f16),
     centerpoint: @Vector(2, f16),
     collision: ColliderType,
+    texture_offset: @Vector(2, f16),
     effect: @Vector(2, f32) = @splat(0),
     // These two are only here because many different world objects can have weapons
     // Should be null on everything that can't wield a weapon
@@ -80,8 +82,8 @@ pub fn applyVelocity(
 
     if (resolution_result != .stop) {
         if (object_type == .player or object_type == .enemy) {
-            if (goal[0] < 0 or goal[0] + collider.hitbox[0] > world_w) velocity[0] = 0;
-            if (goal[1] < 0 or goal[1] + collider.hitbox[1] > world_h) velocity[1] = 0;
+            if (goal[0] < Window.WALLSIZE or goal[0] + collider.hitbox[0] > world_w - Window.WALLSIZE) velocity[0] = 0;
+            if ((collider.hitbox[1] >= Window.WALLSIZE and (goal[1] < 0 or goal[1] + collider.hitbox[1] > world_h - Window.WALLSIZE)) or (collider.hitbox[1] < Window.WALLSIZE and (goal[1] + collider.hitbox[1] < Window.WALLSIZE or goal[1] + collider.hitbox[1] > world_h - Window.WALLSIZE))) velocity[1] = 0;
         } else if (object_type == .bullet) {
             if (collider.pos[0] < 0 or
                 collider.pos[1] < 0 or

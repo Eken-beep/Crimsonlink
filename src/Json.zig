@@ -8,8 +8,8 @@ const Textures = @import("Textures.zig");
 const Input = @import("Input.zig");
 const Items = @import("Items.zig");
 
-const DefaultPlayerData = @embedFile("data/StandardPlayer.json");
-const DefaultKeybinds = @embedFile("data/DefaultBindings.json");
+const DefaultPlayerData = @embedFile("datapresets/StandardPlayer.json");
+const DefaultKeybinds = @embedFile("datapresets/DefaultBindings.json");
 
 const json = std.json;
 
@@ -67,7 +67,7 @@ const IntermediaryEnemyRepresentation = struct {
 pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) anyerror!Statemanager.Room {
     // TODO
     // change this to load the file from some useful place OR embed the data files that shouldn't change like this one
-    const room_file_path: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "src/data/levels/{d}/room_{d}.json", .{ level_id, room_id });
+    const room_file_path: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.json", .{ level_id, room_id });
     const room_file_raw = try std.fs.cwd().readFileAlloc(allocator, room_file_path, @as(usize, @intFromFloat(@exp2(20.0))));
     const parsed = try json.parseFromSlice(
         json.Value,
@@ -78,13 +78,13 @@ pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, texture
 
     var ret: Statemanager.Room = undefined;
 
-    const tilesize = parsed.value.object.get("tileheight").?.integer;
-    const width: u16 = @intCast(parsed.value.object.get("width").?.integer * tilesize);
-    const height: u16 = @intCast(parsed.value.object.get("height").?.integer * tilesize);
+    const width: u16 = @intCast(parsed.value.object.get("width").?.integer);
+    const height: u16 = @intCast(parsed.value.object.get("height").?.integer);
     ret.dimensions = @Vector(2, u16){ width, height };
+    ret.texture = &textures[Textures.getImageId("standard_W1")[0]];
 
     // The enemies always have to be on the second layer
-    const enemies = parsed.value.object.get("layers").?.array.items[1].object.get("objects").?.array.items;
+    const enemies = parsed.value.object.get("enemies").?.array.items;
 
     var enemy_buffer = try allocator.alloc(World.WorldItem, enemies.len);
     for (enemies, 0..) |raw_enemy, i| {
@@ -99,6 +99,7 @@ pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, texture
                 .hitbox = @Vector(2, f16){ enemy_data.width, enemy_data.height },
                 .vel = @splat(0),
                 .collision = .kinetic,
+                .texture_offset = @splat(0),
             },
             .hp = enemy_data.hp,
             .meta = World.WorldItemMetadata{ .enemy = .{

@@ -27,6 +27,7 @@ pub const Level = struct {
 pub const Room = struct {
     dimensions: @Vector(2, u16),
     enemies: []World.WorldItem,
+    texture: *rl.Texture2D,
 };
 
 pub const State = enum {
@@ -73,10 +74,12 @@ pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D, player: *Player)
     rooms[1] = Room{
         .dimensions = @Vector(2, u16){ 1600, 900 },
         .enemies = loadedRoom.enemies,
+        .texture = loadedRoom.texture,
     };
     rooms[2] = Room{
         .dimensions = loadedRoom.dimensions,
         .enemies = loadedRoom.enemies,
+        .texture = loadedRoom.texture,
     };
     switch (id) {
         1 => {
@@ -103,7 +106,7 @@ pub fn nextRoom(self: *Self, textures: []rl.Texture2D, player: *Player) StateErr
             // use the dimensions stored in the level
             var room = try World.init(
                 level.rooms[self.current_room].dimensions,
-                &textures[Textures.getImageId("betamap2")[0]],
+                &textures[Textures.getImageId("standard_W1")[0]],
                 self.current_level.?.allocator,
             );
             try room.addItem(.{
@@ -117,9 +120,6 @@ pub fn nextRoom(self: *Self, textures: []rl.Texture2D, player: *Player) StateErr
                 .weapon = player.forehand,
             });
             try room.items.appendSlice(level.rooms[self.current_room].enemies);
-            // Placeholder texture
-            try room.addItem(.{ .type = World.WorldPacket.item, .x = 500, .y = 50, .sprite = &textures[Textures.getImageId("doge")[0]], .itemtype = .money, .ammount = 5 });
-            try room.addItem(.{ .type = World.WorldPacket.static, .x = 800, .y = 100, .sprite = &textures[Textures.getImageId("doge")[0]] });
             return room;
         }
     }
