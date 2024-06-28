@@ -7,6 +7,12 @@ const images = [_][:0]const u8{
     "assets/betamap2.png",
     "assets/Room_standard_W1_Scaled.png",
 
+    "data/levels/1/room_0.png",
+    "data/levels/1/room_1.png",
+    "data/levels/1/room_2.png",
+    "data/levels/1/room_3.png",
+    "data/levels/1/room_4.png",
+
     // Static sprites
     "assets/heart.png",
     "assets/doge.png",
@@ -37,15 +43,15 @@ const images = [_][:0]const u8{
     "assets/enemies/slug/slug_8.png",
 };
 
-pub fn getImageId(comptime search: []const u8) [2]usize {
+pub fn getImageId(search: []const u8) [2]usize {
     @setEvalBranchQuota(2000);
-    comptime var start = 0;
-    comptime var end = 0;
-    comptime var set = false;
+    var start: usize = 0;
+    var end: usize = 0;
+    var set: bool = false;
     inline for (images, 0..) |image_path, image_index| {
         inline for (image_path, 0..) |char, i| {
             if (char == search[0] and i + search.len < image_path.len) {
-                if (comptime std.mem.eql(u8, search, image_path[i .. i + search.len])) {
+                if (std.mem.eql(u8, search, image_path[i .. i + search.len])) {
                     if (!set) {
                         start = image_index;
                         set = true;

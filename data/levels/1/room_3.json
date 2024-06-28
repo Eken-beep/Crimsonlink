@@ -1,0 +1,17 @@
+{
+    "roomtype":"normal",
+    "width":1600,
+    "height":900,
+    "enemies": [
+        {
+            "type":"slug",
+            "x":988,
+            "y":682
+        },
+        {
+            "type":"slug",
+            "x":1387,
+            "y":409
+        }
+    ]
+}

@@ -384,8 +384,9 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Tex
 
 fn btn_launchGame(state: *Statemanager, textures: []rl.Texture2D, world: *World, player: *Player) anyerror!void {
     state.*.state = .level;
-    try state.*.loadLevel(1, textures, player);
-    world.* = try state.*.nextRoom(textures, player);
+    try state.*.loadLevel(1, textures, player, world);
+    //std.debug.print("{any}", .{state.current_level.?.rooms.*.room_type});
+    //state.*.current_level.?.rooms.*.printSelf(.None, 1);
 }
 fn btn_unpauseGame(state: *Statemanager, textures: []rl.Texture2D, world: *World, player: *Player) anyerror!void {
     try state.pauseLevel(world, textures, player);

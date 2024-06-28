@@ -1,5 +1,5 @@
 .{
-    .name = "raylib-zig",
+    .name = "Crimsonlink",
     .version = "0.1.0",
     .dependencies = .{
         .@"raylib-zig" = .{
@@ -7,5 +7,5 @@
             .hash = "122050b7d335326149738d72f74c8d1b7bdb89c07b12c1fa9b87fe61b69ae7750a21",
         },
     },
-    .paths = .{""},
+    .paths = .{ "src", "build.zig", "build.zig.zon" },
 }

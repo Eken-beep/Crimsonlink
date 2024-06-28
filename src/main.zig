@@ -9,6 +9,7 @@ const Statemanager = @import("Statemanager.zig");
 const Player = @import("Player.zig");
 const Gui = @import("Gui.zig");
 const Json = @import("Json.zig");
+const Level = @import("Level.zig");
 
 const color = rl.Color;
 
@@ -71,13 +72,40 @@ pub fn main() anyerror!void {
                 );
             },
             .level => {
-                if (world.completed) world = try state.nextRoom(textures, &player);
                 try input_state.update();
                 try input_state.parse(&world, &player, window, &state, textures);
                 rl.beginDrawing();
                 defer rl.endDrawing();
 
-                rl.drawTextureEx(world.map.*, rl.Vector2.init(window.origin[0], window.origin[1]), 0, window.scale * 4, rl.Color.white);
+                rl.drawTextureEx(
+                    world.map.*,
+                    rl.Vector2.init(window.origin[0], window.origin[1]),
+                    0,
+                    window.scale * 4,
+                    rl.Color.white,
+                );
+
+                // Draw proper door sprites one day
+                if (state.current_room) |cr| {
+                    if (cr.north != null) {
+                        rl.drawRectangle(@divTrunc(window.width, 2), 0, 50, 50, color.green);
+                    }
+                    if (cr.south != null) {
+                        rl.drawRectangle(@divTrunc(window.width, 2), window.height - 50, 50, 50, color.green);
+                    }
+                    if (cr.east != null) {
+                        rl.drawRectangle(0, @divTrunc(window.height, 2), 50, 50, color.green);
+                    }
+                    if (cr.west != null) {
+                        rl.drawRectangle(window.width - 50, @divTrunc(window.height, 2), 50, 50, color.green);
+                    }
+                }
+
+                // Temporary to traverse the rooms for now
+                if (rl.isKeyPressed(rl.KeyboardKey.key_up)) world = try state.loadRoom(textures, &player, state.current_room.?.north.?);
+                if (rl.isKeyPressed(rl.KeyboardKey.key_down)) world = try state.loadRoom(textures, &player, state.current_room.?.south.?);
+                if (rl.isKeyPressed(rl.KeyboardKey.key_left)) world = try state.loadRoom(textures, &player, state.current_room.?.east.?);
+                if (rl.isKeyPressed(rl.KeyboardKey.key_right)) world = try state.loadRoom(textures, &player, state.current_room.?.west.?);
 
                 if (!world.paused) world.iterate(&window, &player);
                 try Gui.reloadGui(

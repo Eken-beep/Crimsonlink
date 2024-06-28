@@ -199,7 +199,9 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
 
     loop: while (len > i) : (i += 1) {
         const item = self.items.items[i];
-        if (item.meta == .enemy) found_enemy = true;
+        if (item.meta == .enemy) {
+            found_enemy = true;
+        }
 
         if (item.hp < 1) {
             _ = self.items.orderedRemove(i);

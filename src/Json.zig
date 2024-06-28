@@ -7,6 +7,7 @@ const EnemyTypes = @import("EnemyTypes.zig");
 const Textures = @import("Textures.zig");
 const Input = @import("Input.zig");
 const Items = @import("Items.zig");
+const Level = @import("Level.zig");
 
 const DefaultPlayerData = @embedFile("datapresets/StandardPlayer.json");
 const DefaultKeybinds = @embedFile("datapresets/DefaultBindings.json");
@@ -64,10 +65,28 @@ const IntermediaryEnemyRepresentation = struct {
     y: f64,
 };
 
-pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) anyerror!Statemanager.Room {
+pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) anyerror!Level.Level {
+    const leveldata_path: []const u8 = try std.fmt.allocPrint(allocator, "data/levels/{d}/level.json", .{level_id});
+    const raw_leveldata = try std.fs.cwd().readFileAlloc(allocator, leveldata_path, @as(usize, @intFromFloat(@exp2(20.0))));
+    const parsed_leveldata = try json.parseFromSlice(json.Value, allocator, raw_leveldata, .{});
+    const nr_rooms: u8 = @intCast(parsed_leveldata.value.object.get("rooms").?.integer);
+
+    const rooms = try allocator.alloc(Level.Room, nr_rooms);
+    for (rooms, 0..) |_, i| {
+        const id: u8 = @intCast(i);
+        rooms[i] = try loadRoom(level_id, id, allocator, textures);
+    }
+    return Level.Level{
+        .id = level_id,
+        .rooms = try Level.genLevel(allocator, rooms),
+    };
+}
+
+fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) anyerror!Level.Room {
     // TODO
     // change this to load the file from some useful place OR embed the data files that shouldn't change like this one
     const room_file_path: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.json", .{ level_id, room_id });
+    const room_texture_filename: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "{d}/room_{d}", .{ level_id, room_id });
     const room_file_raw = try std.fs.cwd().readFileAlloc(allocator, room_file_path, @as(usize, @intFromFloat(@exp2(20.0))));
     const parsed = try json.parseFromSlice(
         json.Value,
@@ -76,39 +95,43 @@ pub fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, texture
         .{},
     );
 
-    var ret: Statemanager.Room = undefined;
+    var ret: Level.Room = undefined;
 
     const width: u16 = @intCast(parsed.value.object.get("width").?.integer);
     const height: u16 = @intCast(parsed.value.object.get("height").?.integer);
     ret.dimensions = @Vector(2, u16){ width, height };
-    ret.texture = &textures[Textures.getImageId("standard_W1")[0]];
+    ret.texture = &textures[Textures.getImageId(room_texture_filename)[0]];
 
-    // The enemies always have to be on the second layer
-    const enemies = parsed.value.object.get("enemies").?.array.items;
+    ret.room_type = try mapRoomtypeToEnum(parsed.value.object.get("roomtype").?.string);
 
-    var enemy_buffer = try allocator.alloc(World.WorldItem, enemies.len);
-    for (enemies, 0..) |raw_enemy, i| {
-        const enemy_data = try EnemyTypes.mapClassToType(raw_enemy.object.get("type").?.string);
-        enemy_buffer[i] = World.WorldItem{
-            .c = .{
-                .pos = @Vector(2, f32){
-                    @floatFromInt(raw_enemy.object.get("x").?.integer),
-                    @floatFromInt(raw_enemy.object.get("y").?.integer),
+    const enemies_nullable = parsed.value.object.get("enemies");
+
+    ret.enemies = if (enemies_nullable) |e| blk: {
+        const enemies = e.array.items;
+        var enemy_buffer = try allocator.alloc(World.WorldItem, enemies.len);
+        for (enemies, 0..) |raw_enemy, i| {
+            const enemy_data = try EnemyTypes.mapClassToType(raw_enemy.object.get("type").?.string);
+            enemy_buffer[i] = World.WorldItem{
+                .c = .{
+                    .pos = @Vector(2, f32){
+                        @floatFromInt(raw_enemy.object.get("x").?.integer),
+                        @floatFromInt(raw_enemy.object.get("y").?.integer),
+                    },
+                    .centerpoint = @Vector(2, f16){ enemy_data.width / 2, enemy_data.height / 2 },
+                    .hitbox = @Vector(2, f16){ enemy_data.width, enemy_data.height },
+                    .vel = @splat(0),
+                    .collision = .kinetic,
+                    .texture_offset = @splat(0),
                 },
-                .centerpoint = @Vector(2, f16){ enemy_data.width / 2, enemy_data.height / 2 },
-                .hitbox = @Vector(2, f16){ enemy_data.width, enemy_data.height },
-                .vel = @splat(0),
-                .collision = .kinetic,
-                .texture_offset = @splat(0),
-            },
-            .hp = enemy_data.hp,
-            .meta = World.WorldItemMetadata{ .enemy = .{
-                .animation = Textures.animation(u3).init(0.2, textures[enemy_data.animation[0]..enemy_data.animation[1]]),
-                .attack_type = @enumFromInt(enemy_data.attack_type),
-            } },
-        };
-    }
-    ret.enemies = enemy_buffer;
+                .hp = enemy_data.hp,
+                .meta = World.WorldItemMetadata{ .enemy = .{
+                    .animation = Textures.animation(u3).init(0.2, textures[enemy_data.animation[0]..enemy_data.animation[1]]),
+                    .attack_type = @enumFromInt(enemy_data.attack_type),
+                } },
+            };
+        }
+        break :blk enemy_buffer;
+    } else null;
     return ret;
 }
 
@@ -137,4 +160,12 @@ fn mapActionToInputAction(action: []const u8) !Input.InputAction {
     if (std.mem.eql(u8, "shoot_end", action)) return Input.InputAction.shoot_end;
     if (std.mem.eql(u8, "pause", action)) return Input.InputAction.pause;
     return error.InvalidKeyConfig;
+}
+
+fn mapRoomtypeToEnum(roomtype: []const u8) !Level.RoomType {
+    if (std.mem.eql(u8, "normal", roomtype)) return Level.RoomType.Normal;
+    if (std.mem.eql(u8, "spawn", roomtype)) return Level.RoomType.Spawn;
+    if (std.mem.eql(u8, "loot", roomtype)) return Level.RoomType.Loot;
+    if (std.mem.eql(u8, "boss", roomtype)) return Level.RoomType.Boss;
+    return error.InvalidMapData;
 }
