@@ -31,6 +31,7 @@ const Resolution = union(enum) {
     none,
     kill,
     spread,
+    goto: Direction,
     pickup: usize,
     stop: Direction,
     damage: usize,
@@ -152,6 +153,15 @@ fn resolve(
 ) Resolution {
     // This whole function is horrible but idrc
     if (a_meta == .player and b_meta == .item) return Resolution{ .pickup = b_index };
+    if (a_meta == .player and b_meta == .door) {
+        return switch (b_meta.door.direction) {
+            .North => Resolution{ .goto = .up },
+            .South => Resolution{ .goto = .down },
+            .East => Resolution{ .goto = .right },
+            .West => Resolution{ .goto = .left },
+            .None => Resolution{ .goto = .invalid },
+        };
+    }
     // If this isn't a possible item pickup then just exit for all transparent items
     if (b.collision == .transparent) return .none;
     if (a_meta == .bullet and b.collision == .static) return .kill;

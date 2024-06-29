@@ -18,7 +18,7 @@ pub const RoomType = enum {
     Spawn,
 };
 
-const Direction = enum {
+pub const Direction = enum {
     None,
     North,
     South,
@@ -94,6 +94,7 @@ pub fn genLevel(allocator: std.mem.Allocator, room_types: []Room) !*Room {
         &id,
         &loot_spawned,
         &boss_has_spawned,
+        true,
     );
 }
 
@@ -109,8 +110,9 @@ fn makeRooms(
     id: *u8,
     loot_spawned: *f32,
     boss_has_spawned: *bool,
+    can_have_children: bool,
 ) !*Room {
-    // Reduce the probability of creating a new room by 10% for each generated room
+    // Reduce the probability of creating a new room by half for each generated room
     const new_depth = depth / 2;
     const return_room = try allocator.create(Room);
     return_room.* = room;
@@ -131,9 +133,10 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                true,
             );
             // If we encounter the end of a corridor we take a chance at spawning a loot room
-        } else if (rand.float(f32) < 1 / loot_spawned.*) {
+        } else if (rand.float(f32) < 1 / loot_spawned.* and can_have_children) {
             loot_spawned.* += 1;
             break :blk try makeRooms(
                 allocator,
@@ -142,14 +145,15 @@ fn makeRooms(
                 all_rooms,
                 .South,
                 return_room,
-                // Set the depth to 0 to guarantee no more loot rooms are spawned
+                // Set the depth to 0 to guarantee no more normal rooms are spawned
                 0,
                 rand,
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
-        } else if (!boss_has_spawned.*) {
+        } else if (!boss_has_spawned.* and can_have_children) {
             boss_has_spawned.* = true;
             break :blk try makeRooms(
                 allocator,
@@ -164,6 +168,7 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
         } else break :blk null;
     };
@@ -181,8 +186,9 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                true,
             );
-        } else if (rand.float(f32) < 1 / loot_spawned.*) {
+        } else if (rand.float(f32) < 1 / loot_spawned.* and can_have_children) {
             loot_spawned.* += 1;
             break :blk try makeRooms(
                 allocator,
@@ -195,8 +201,9 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
-        } else if (!boss_has_spawned.*) {
+        } else if (!boss_has_spawned.* and can_have_children) {
             boss_has_spawned.* = true;
             break :blk try makeRooms(
                 allocator,
@@ -209,6 +216,7 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
         } else break :blk null;
     };
@@ -226,8 +234,9 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                true,
             );
-        } else if (rand.float(f32) < 1 / loot_spawned.*) {
+        } else if (rand.float(f32) < 1 / loot_spawned.* and can_have_children) {
             loot_spawned.* += 1;
             break :blk try makeRooms(
                 allocator,
@@ -240,8 +249,9 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
-        } else if (!boss_has_spawned.*) {
+        } else if (!boss_has_spawned.* and can_have_children) {
             boss_has_spawned.* = true;
             break :blk try makeRooms(
                 allocator,
@@ -254,6 +264,7 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
         } else break :blk null;
     };
@@ -271,8 +282,9 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                true,
             );
-        } else if (rand.float(f32) < 1 / loot_spawned.*) {
+        } else if (rand.float(f32) < 1 / loot_spawned.* and can_have_children) {
             loot_spawned.* += 1;
             break :blk try makeRooms(
                 allocator,
@@ -285,8 +297,9 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
-        } else if (!boss_has_spawned.*) {
+        } else if (!boss_has_spawned.* and can_have_children) {
             boss_has_spawned.* = true;
             break :blk try makeRooms(
                 allocator,
@@ -299,6 +312,7 @@ fn makeRooms(
                 id,
                 loot_spawned,
                 boss_has_spawned,
+                false,
             );
         } else break :blk null;
     };

@@ -19,6 +19,7 @@ const images = [_][:0]const u8{
     "assets/gun/Gun 1.png",
 
     // Characters
+    "assets/player/Main_New.png",
     "assets/player/MainCharacter1.png",
     "assets/player/MainCharacter2.png",
     "assets/player/MainCharacter3.png",

@@ -1,10 +1,12 @@
 const std = @import("std");
 const rl = @import("raylib");
+
 const Window = @import("Window.zig");
 const Input = @import("Input.zig");
 const Textures = @import("Textures.zig");
 const Player = @import("Player.zig");
 const Collider = @import("Collider.zig");
+const Level = @import("Level.zig");
 
 const key = rl.KeyboardKey;
 
@@ -19,6 +21,7 @@ pub const WorldPacket = enum {
     bullet,
     item,
     static,
+    door,
     // What is expected from the different anonymous structs
     //    player: struct {
     //        x: f32,
@@ -45,6 +48,10 @@ pub const WorldPacket = enum {
     //        x
     //        y
     //        sprite
+    //    }
+    //    door: struct {
+    //        direction: Level.Direction !.None
+    //        texture
     //    }
 };
 
@@ -75,9 +82,12 @@ pub const WorldItemMetadata = union(enum) {
         payload: Player.Item,
     },
     static: *rl.Texture2D,
+    door: struct {
+        direction: Level.Direction,
+        texture: *rl.Texture2D,
+    },
 };
 
-// Everything dies if there are no items in the world, fix, needs a menu to return to or something
 // The ai is retarded, fix
 
 // Here the player is expected to be items[0] in all cases
@@ -185,11 +195,39 @@ pub fn addItem(self: *Self, item: anytype) !void {
                 .meta = WorldItemMetadata{ .static = item.sprite },
             });
         },
+        .door => {
+            const ww: f32 = @floatFromInt(self.dim[0]);
+            const wh: f32 = @floatFromInt(self.dim[1]);
+            try self.items.append(WorldItem{
+                .c = .{
+                    .pos = switch (item.side) {
+                        .North => @Vector(2, f32){ ww / 2 - 50, 0 },
+                        .South => @Vector(2, f32){ ww / 2 - 50, wh - 5 - Window.WALLSIZE },
+                        .East => @Vector(2, f32){ ww - 5 - Window.WALLSIZE, wh / 2 - 50 },
+                        .West => @Vector(2, f32){ Window.WALLSIZE, wh / 2 - 50 },
+                        else => unreachable,
+                    },
+                    .vel = @splat(0),
+                    .hitbox = switch (item.side) {
+                        .North, .South => @Vector(2, f16){ 100, 5 },
+                        else => @Vector(2, f16){ 5, 100 },
+                    },
+                    .centerpoint = @splat(0),
+                    .collision = .static,
+                    .texture_offset = @splat(0),
+                },
+                .hp = 1,
+                .meta = WorldItemMetadata{ .door = .{
+                    .direction = item.side,
+                    .texture = item.texture,
+                } },
+            });
+        },
         //else => {},
     }
 }
 
-pub fn iterate(self: *Self, window: *Window, player: *Player) void {
+pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switch: *Level.Direction) bool {
     var len = self.items.items.len;
     var i: u16 = 0;
 
@@ -277,6 +315,19 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                     rl.Color.white,
                 );
             },
+            .door => |door| {
+                if (DRAW_HITBOXES) drawHitbox(
+                    item.c.hitbox * @as(@Vector(2, f32), @splat(window.scale)),
+                    (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
+                );
+                rl.drawTextureEx(
+                    door.texture.*,
+                    makeRlVec2(item.c.pos, window.origin, window.scale),
+                    0,
+                    window.scale * Window.PXSCALE,
+                    rl.Color.white,
+                );
+            },
         }
 
         if (item.c.weapon_mount) |weapon_mountpoint| {
@@ -322,10 +373,21 @@ pub fn iterate(self: *Self, window: *Window, player: *Player) void {
                     _ = self.items.orderedRemove(dropped_item);
                     len -= 1;
                 },
+                .goto => |to| {
+                    switch (to) {
+                        .up => world_should_switch.* = .North,
+                        .down => world_should_switch.* = .South,
+                        .right => world_should_switch.* = .East,
+                        .left => world_should_switch.* = .West,
+                        .invalid => world_should_switch.* = .None,
+                    }
+                },
                 else => {},
             }
         }
     }
+    // For setting the room data for later
+    return !found_enemy;
 }
 
 fn drawHitbox(hb: @Vector(2, f32), pos: @Vector(2, f32)) void {

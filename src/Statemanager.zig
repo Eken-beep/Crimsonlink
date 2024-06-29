@@ -25,6 +25,7 @@ pub const State = enum {
 state: State,
 gui: []Gui.GuiSegment,
 gui_arena: std.heap.ArenaAllocator,
+gui_state: Gui.GuiState,
 current_room: ?*Level.Room,
 current_level: ?Level.Level,
 allocator: std.mem.Allocator,
@@ -37,6 +38,7 @@ pub fn init(backing_allocator: std.mem.Allocator, textures: []rl.Texture2D) !Sel
         .state = .main_menu,
         .gui = undefined,
         .gui_arena = std.heap.ArenaAllocator.init(backing_allocator),
+        .gui_state = .mainmenu_0,
         .current_level = null,
         .current_room = null,
         .allocator = backing_allocator,
@@ -50,11 +52,9 @@ pub fn init(backing_allocator: std.mem.Allocator, textures: []rl.Texture2D) !Sel
 // The level does not manage the world, rather the layout of the rooms
 pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D, player: *Player, world: *World) !void {
     self.state = .level;
-    _ = self.gui_arena.reset(.free_all);
-    self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures);
-    self.gui[0].elements[0].hpm.source = &player.*.hp;
-    self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
-    _ = self.level_arena.reset(.free_all);
+    self.gui_state = .level;
+
+    try self.reloadGui(textures, player);
 
     self.current_level = try Json.getLevel(id, self.level_allocator, textures);
     // Setting the current room to the first room (spawn)
@@ -62,6 +62,33 @@ pub fn loadLevel(self: *Self, id: u8, textures: []rl.Texture2D, player: *Player,
     // This can change when the player moves
     self.current_room = self.current_level.?.rooms;
     world.* = try self.loadRoom(textures, player, self.current_level.?.rooms);
+}
+
+pub fn unloadLevel(self: *Self) void {
+    self.state = .main_menu;
+    _ = self.level_arena.reset(.free_all);
+}
+
+// This does all the extra around loading a gui
+// like setting the pointers to the data
+pub fn reloadGui(self: *Self, textures: []rl.Texture2D, player: *Player) !void {
+    // We keep the capacity when reloading the gui during a level or inside a menu
+    _ = self.gui_arena.reset(.retain_capacity);
+
+    switch (self.gui_state) {
+        .mainmenu_0 => {
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .mainmenu_0, textures);
+        },
+        .level => {
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures);
+            self.gui[0].elements[0].hpm.source = &player.*.hp;
+            self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
+        },
+        .level_paused => {
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level_paused, textures);
+        },
+        else => unreachable,
+    }
 }
 
 pub fn loadRoom(self: *Self, textures: []rl.Texture2D, player: *Player, room: *Level.Room) StateError!World {
@@ -78,9 +105,29 @@ pub fn loadRoom(self: *Self, textures: []rl.Texture2D, player: *Player, room: *L
         .y = 200,
         .animation = Textures.animation(u2).init(
             0.5,
-            textures[Textures.getImageId("MainCharacter")[0]..Textures.getImageId("MainCharacter")[1]],
+            textures[comptime Textures.getImageId("Main_New")[0]..comptime Textures.getImageId("MainCharacter")[1]],
         ),
         .weapon = player.forehand,
+    });
+    if (room.*.north != null) try world.addItem(.{
+        .type = World.WorldPacket.door,
+        .side = Level.Direction.North,
+        .texture = &textures[Textures.getImageId("Gun 1")[0]],
+    });
+    if (room.*.south != null) try world.addItem(.{
+        .type = World.WorldPacket.door,
+        .side = Level.Direction.South,
+        .texture = &textures[Textures.getImageId("Gun 1")[0]],
+    });
+    if (room.*.east != null) try world.addItem(.{
+        .type = World.WorldPacket.door,
+        .side = Level.Direction.East,
+        .texture = &textures[Textures.getImageId("Gun 1")[0]],
+    });
+    if (room.*.west != null) try world.addItem(.{
+        .type = World.WorldPacket.door,
+        .side = Level.Direction.West,
+        .texture = &textures[Textures.getImageId("Gun 1")[0]],
     });
     if (room.*.enemies) |enemies| if (!room.*.completed) try world.items.appendSlice(enemies);
     return world;
@@ -89,15 +136,6 @@ pub fn loadRoom(self: *Self, textures: []rl.Texture2D, player: *Player, room: *L
 pub fn pauseLevel(self: *Self, world: *World, textures: []rl.Texture2D, player: *Player) anyerror!void {
     //if (self.state != .level or self.state != .level_paused) return StateError.StateNotPausable;
     world.paused = !world.paused;
-    const state: Gui.GuiState = if (world.paused) .level_paused else .level;
-    _ = self.gui_arena.reset(.free_all);
-    self.gui = try Gui.GuiInit(
-        self.gui_arena.allocator(),
-        state,
-        textures,
-    );
-    if (!world.paused) {
-        self.gui[0].elements[0].hpm.source = &player.*.hp;
-        self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
-    }
+    self.gui_state = if (world.paused) .level_paused else .level;
+    try self.reloadGui(textures, player);
 }

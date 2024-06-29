@@ -46,6 +46,8 @@ pub fn main() anyerror!void {
 
     var player = try Json.loadPlayerData(null, gpa, textures);
 
+    var goto_room: Level.Direction = .None;
+
     while (!rl.windowShouldClose()) {
         rl.setExitKey(rl.KeyboardKey.key_null);
         if (rl.isWindowResized()) {
@@ -85,29 +87,21 @@ pub fn main() anyerror!void {
                     rl.Color.white,
                 );
 
-                // Draw proper door sprites one day
-                if (state.current_room) |cr| {
-                    if (cr.north != null) {
-                        rl.drawRectangle(@divTrunc(window.width, 2), 0, 50, 50, color.green);
-                    }
-                    if (cr.south != null) {
-                        rl.drawRectangle(@divTrunc(window.width, 2), window.height - 50, 50, 50, color.green);
-                    }
-                    if (cr.east != null) {
-                        rl.drawRectangle(0, @divTrunc(window.height, 2), 50, 50, color.green);
-                    }
-                    if (cr.west != null) {
-                        rl.drawRectangle(window.width - 50, @divTrunc(window.height, 2), 50, 50, color.green);
+                if (!world.paused) state.current_room.?.*.completed = world.iterate(&window, &player, &goto_room);
+                if (state.current_room.?.*.completed) {
+                    state.current_room.?.*.enemies = null;
+
+                    switch (goto_room) {
+                        .None => {},
+                        .North => world = try state.loadRoom(textures, &player, state.current_room.?.north.?),
+                        .South => world = try state.loadRoom(textures, &player, state.current_room.?.south.?),
+                        .East => world = try state.loadRoom(textures, &player, state.current_room.?.east.?),
+                        .West => world = try state.loadRoom(textures, &player, state.current_room.?.west.?),
                     }
                 }
 
-                // Temporary to traverse the rooms for now
-                if (rl.isKeyPressed(rl.KeyboardKey.key_up)) world = try state.loadRoom(textures, &player, state.current_room.?.north.?);
-                if (rl.isKeyPressed(rl.KeyboardKey.key_down)) world = try state.loadRoom(textures, &player, state.current_room.?.south.?);
-                if (rl.isKeyPressed(rl.KeyboardKey.key_left)) world = try state.loadRoom(textures, &player, state.current_room.?.east.?);
-                if (rl.isKeyPressed(rl.KeyboardKey.key_right)) world = try state.loadRoom(textures, &player, state.current_room.?.west.?);
-
-                if (!world.paused) world.iterate(&window, &player);
+                // Reset this immediately after switching room
+                goto_room = .None;
                 try Gui.reloadGui(
                     state.gui,
                     window,
@@ -118,8 +112,9 @@ pub fn main() anyerror!void {
                     &player,
                 );
             },
-            else => {},
+            else => unreachable,
         }
         rl.clearBackground(color.black);
     }
+    state.unloadLevel();
 }
