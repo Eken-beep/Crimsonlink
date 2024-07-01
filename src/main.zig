@@ -20,7 +20,8 @@ const color = rl.Color;
 
 const fullscreen = true;
 pub fn main() anyerror!void {
-    rl.setConfigFlags(rl.ConfigFlags.flag_window_resizable);
+    rl.setConfigFlags(rl.ConfigFlags{ .window_resizable = true });
+    rl.setExitKey(rl.KeyboardKey.key_null);
     rl.initWindow(1600, 900, "~Crimsonlink~");
     rl.setTargetFPS(60);
     defer rl.closeWindow();
@@ -48,7 +49,6 @@ pub fn main() anyerror!void {
     var goto_room: Level.Direction = .None;
 
     while (!rl.windowShouldClose()) {
-        rl.setExitKey(rl.KeyboardKey.key_null);
         if (rl.isWindowResized()) {
             // isn't going to overflow as u16 anyways so who cares
             window.update(@as(u16, @intCast(rl.getRenderWidth())), @as(u16, @intCast(rl.getRenderHeight())), 1600, 900);
