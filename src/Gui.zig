@@ -63,7 +63,7 @@ const Container = struct {
 
 const Label = struct {
     // Label can be either image or text, or both
-    image: ?*rl.Texture2D,
+    image: ?rl.Texture2D,
     text: ?[:0]const u8,
     // Use this if the text should be from somewhere else
     // I.E not hardcoded, only numerical values
@@ -83,7 +83,7 @@ const Button = struct {
     // This is horrible and can be done better, idk how
     action: *const fn (
         state: *Statemanager,
-        textures: []rl.Texture2D,
+        textures: Textures.TextureMap,
         world: *World,
         player: *Player,
     ) anyerror!void,
@@ -103,7 +103,7 @@ const ProgressBar = struct {
 
 const HitpointMeter = struct {
     source: *u16,
-    image: *rl.Texture2D,
+    image: rl.Texture2D,
 };
 
 pub fn reloadGui(
@@ -111,7 +111,7 @@ pub fn reloadGui(
     window: Window,
     mouse: ?@Vector(2, i32),
     state: *Statemanager,
-    textures: []rl.Texture2D,
+    textures: Textures.TextureMap,
     world: *World,
     player: *Player,
 ) !void {
@@ -144,7 +144,7 @@ fn drawElement(
     window: Window,
     mouse: ?@Vector(2, i32),
     state: *Statemanager,
-    textures: []rl.Texture2D,
+    textures: Textures.TextureMap,
     world: *World,
     player: *Player,
 ) !@Vector(2, u16) {
@@ -185,12 +185,12 @@ fn drawElement(
             var local_cursorx = cursor[0];
             var height: u16 = 0;
             if (lbl.image) |image| {
-                const w: u16 = @intCast(image.*.width);
-                const h: u16 = @intCast(image.*.height);
+                const w: u16 = @intCast(image.width);
+                const h: u16 = @intCast(image.height);
                 local_cursorx += w + window.gui_scale * window.gui_spacing;
                 height = @intCast(h);
                 rl.drawTextureEx(
-                    image.*,
+                    image,
                     rl.Vector2.init(@as(f32, @floatFromInt(cursor[0])), @as(f32, @floatFromInt(cursor[1] - cursor[2] * h))),
                     0,
                     @as(f32, @floatFromInt(window.gui_scale)),
@@ -221,7 +221,7 @@ fn drawElement(
             var local_cursorx: i32 = cursor[0];
             for (0..hp) |_| {
                 rl.drawTextureEx(
-                    hpm.image.*,
+                    hpm.image,
                     rl.Vector2.init(
                         @as(f32, @floatFromInt(local_cursorx)),
                         @as(f32, @floatFromInt(cursor[1] - cursor[2] * hpm.image.height)),
@@ -230,9 +230,9 @@ fn drawElement(
                     @as(f32, @floatFromInt(window.gui_scale)),
                     color.white,
                 );
-                local_cursorx += @intCast(hpm.image.*.width);
+                local_cursorx += @intCast(hpm.image.width);
             }
-            return @Vector(2, u16){ @intCast(hpm.image.*.width * hpm.source.*), @intCast(hpm.image.*.height) };
+            return @Vector(2, u16){ @intCast(hpm.image.width * hpm.source.*), @intCast(hpm.image.height) };
         },
         // The x here does not matter, spacers cant be in rows anyways
         .spc => |spacer| return @Vector(2, u16){ 0, spacer },
@@ -291,7 +291,7 @@ fn getCursorStart(pos: Position, column_size: u16, window: Window) @Vector(3, u1
 // and then puts a cursor on that position and begins drawing everything from there, dividing len(elements) by columns to figure
 // out when we need to break the line and begin the next one, useful in menus and stuff
 
-pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Texture2D) ![]GuiSegment {
+pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures.TextureMap) ![]GuiSegment {
     std.debug.print("Loaded gui state {any}\n", .{state});
     switch (state) {
         .level => {
@@ -305,13 +305,13 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Tex
             result[0].elements = try allocator.alloc(GuiItem, 3);
             result[0].elements[0] = .{ .hpm = .{
                 .source = undefined,
-                .image = &textures[Textures.getImageId("heart")[0]],
+                .image = Textures.getTexture(textures, "heart").single,
             } };
             result[0].elements[1] = .{ .spc = 20 };
             result[0].elements[2] = .{
                 .lbl = .{
                     .fg_color = color.white,
-                    .image = &textures[Textures.getImageId("doge")[0]],
+                    .image = Textures.getTexture(textures, "doge").single,
                     .text = null,
                     // Remember changing these after loading the gui
                     .text_source = null,
@@ -382,12 +382,12 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: []rl.Tex
     }
 }
 
-fn btn_launchGame(state: *Statemanager, textures: []rl.Texture2D, world: *World, player: *Player) anyerror!void {
+fn btn_launchGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) anyerror!void {
     state.*.state = .level;
     try state.*.loadLevel(1, textures, player, world);
     //std.debug.print("{any}", .{state.current_level.?.rooms.*.room_type});
     //state.*.current_level.?.rooms.*.printSelf(.None, 1);
 }
-fn btn_unpauseGame(state: *Statemanager, textures: []rl.Texture2D, world: *World, player: *Player) anyerror!void {
+fn btn_unpauseGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) anyerror!void {
     try state.pauseLevel(world, textures, player);
 }

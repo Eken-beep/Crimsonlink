@@ -30,7 +30,6 @@ pub fn main() anyerror!void {
     const gpa = general_purpouse_allocator.allocator();
 
     const textures = try Textures.loadTextures(gpa);
-    defer gpa.free(textures);
 
     var state = try Statemanager.init(gpa, textures);
     state.level_allocator = state.level_arena.allocator();
@@ -80,7 +79,7 @@ pub fn main() anyerror!void {
                 defer rl.endDrawing();
 
                 rl.drawTextureEx(
-                    world.map.*,
+                    world.map,
                     rl.Vector2.init(window.origin[0], window.origin[1]),
                     0,
                     window.scale * 4,

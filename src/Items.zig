@@ -7,7 +7,7 @@ pub const Weapon = struct {
     // Where on the gun is the handle? Anchored to the gun itself
     handle: @Vector(2, f16),
     range: WeaponRange,
-    texture: *rl.Texture2D,
+    texture: rl.Texture2D,
     name: []const u8,
 };
 
@@ -18,11 +18,11 @@ const WeaponRange = union(enum) {
         range: f16,
         // How many radians on each side of the attack angle the weapon reaches
         angle: f16,
-        slice_animation: *rl.Texture2D,
+        slice_animation: rl.Texture2D,
     },
     range: struct {
         damage: u16,
-        bullet_texture: *rl.Texture2D,
+        bullet_texture: rl.Texture2D,
     },
 };
 
@@ -34,8 +34,8 @@ pub fn makeBullet(
     window_origin: @Vector(2, f32),
     window_scale: f32,
 ) World.WorldItem {
-    const weaponw: f32 = @floatFromInt(4 * gun.texture.*.width);
-    const weaponh: f32 = @floatFromInt(4 * gun.texture.*.height);
+    const weaponw: f32 = @floatFromInt(4 * gun.texture.width);
+    const weaponh: f32 = @floatFromInt(4 * gun.texture.height);
     const weaponx = owner.c.pos[0] + owner.c.weapon_mount.?[0] - owner.c.weapon.?.handle[0];
     const weapony = owner.c.pos[1] + owner.c.weapon_mount.?[1] - owner.c.weapon.?.handle[0];
     const angle = std.math.atan2(

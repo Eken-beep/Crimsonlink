@@ -62,7 +62,7 @@ pub const WorldItem = struct {
 };
 
 pub const WorldItemMetadata = union(enum) {
-    player: Textures.animation(u2),
+    player: Textures.Animation,
     bullet: struct {
         damage: u16,
         owner: enum {
@@ -71,7 +71,7 @@ pub const WorldItemMetadata = union(enum) {
         },
     },
     enemy: struct {
-        animation: Textures.animation(u3),
+        animation: Textures.Animation,
         attack_type: enum(u8) {
             range = 1,
             melee = 2,
@@ -81,10 +81,10 @@ pub const WorldItemMetadata = union(enum) {
         dt: f32,
         payload: Player.Item,
     },
-    static: *rl.Texture2D,
+    static: rl.Texture2D,
     door: struct {
         direction: Level.Direction,
-        texture: *rl.Texture2D,
+        texture: rl.Texture2D,
     },
 };
 
@@ -94,11 +94,11 @@ pub const WorldItemMetadata = union(enum) {
 items: std.ArrayList(WorldItem),
 allocator: std.mem.Allocator,
 dim: @Vector(2, u16),
-map: *rl.Texture2D,
+map: rl.Texture2D,
 completed: bool = false,
 paused: bool = false,
 
-pub fn init(dim: @Vector(2, u16), map: *rl.Texture2D, allocator: std.mem.Allocator) !Self {
+pub fn init(dim: @Vector(2, u16), map: rl.Texture2D, allocator: std.mem.Allocator) !Self {
     return Self{
         .items = std.ArrayList(WorldItem).init(allocator),
         .allocator = allocator,
@@ -259,7 +259,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                 if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
 
                 rl.drawTextureEx(
-                    p.frames[p.current_frame],
+                    p.getFrame(item.c.pos, item.c.vel),
                     makeRlVec2(self.items.items[i].c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -283,7 +283,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                 }
 
                 rl.drawTextureEx(
-                    e.animation.frames[e.animation.current_frame],
+                    e.animation.getFrame(item.c.pos, item.c.vel),
                     makeRlVec2(item.c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -295,7 +295,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                 // Bouncy item
                 const vpos = item.c.pos + @Vector(2, f32){ 0, 10 * @sin(x.dt) };
                 rl.drawTextureEx(
-                    x.payload.image.*,
+                    x.payload.image,
                     makeRlVec2(vpos + item.c.texture_offset, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -308,7 +308,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                     (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
                 );
                 rl.drawTextureEx(
-                    sprite.*,
+                    sprite,
                     makeRlVec2(item.c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -321,7 +321,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                     (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
                 );
                 rl.drawTextureEx(
-                    door.texture.*,
+                    door.texture,
                     makeRlVec2(item.c.pos, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -333,7 +333,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
         if (item.c.weapon_mount) |weapon_mountpoint| {
             if (item.c.weapon) |weapon| {
                 rl.drawTextureEx(
-                    weapon.texture.*,
+                    weapon.texture,
                     makeRlVec2(item.c.pos + weapon_mountpoint - item.c.weapon.?.handle, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,

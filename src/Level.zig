@@ -37,7 +37,7 @@ pub const Room = struct {
     room_type: RoomType,
     dimensions: @Vector(2, u16),
     enemies: ?[]World.WorldItem,
-    texture: *rl.Texture2D,
+    texture: rl.Texture2D,
     completed: bool = false,
     id: u8,
 

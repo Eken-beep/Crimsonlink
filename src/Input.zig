@@ -4,6 +4,7 @@ const World = @import("World.zig");
 const Player = @import("Player.zig");
 const Window = @import("Window.zig");
 const Statemanager = @import("Statemanager.zig");
+const Textures = @import("Textures.zig");
 
 const key = rl.KeyboardKey;
 
@@ -56,7 +57,14 @@ pub const InputState = struct {
         }
     }
 
-    pub fn parse(self: *Self, world: *World, player: *Player, window: Window, state: *Statemanager, textures: []rl.Texture2D) !void {
+    pub fn parse(
+        self: *Self,
+        world: *World,
+        player: *Player,
+        window: Window,
+        state: *Statemanager,
+        textures: Textures.TextureMap,
+    ) !void {
         while (self.active_actions.items.len > 0) {
             switch (self.active_actions.pop()) {
                 .moveup => world.items.items[0].c.vel += @Vector(2, f32){ 0, -player.movementspeed },

@@ -14,7 +14,7 @@ const DefaultKeybinds = @embedFile("datapresets/DefaultBindings.json");
 
 const json = std.json;
 
-pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) !Player {
+pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator, textures: Textures.TextureMap) !Player {
     const RawPlayerData = struct {
         hp: u8,
         max_hp: u8,
@@ -35,7 +35,7 @@ pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator, textures:
         .hand_placement = @Vector(2, f32){ 10, 10 },
         .forehand = blk: {
             var tmp = Items.Weapons.Gun1;
-            tmp.texture = &textures[Textures.getImageId(Items.Weapons.Gun1.name)[0]];
+            tmp.texture = Textures.getTexture(textures, "Gun").slice[0];
 
             break :blk tmp;
         },
@@ -65,7 +65,7 @@ const IntermediaryEnemyRepresentation = struct {
     y: f64,
 };
 
-pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) anyerror!Level.Level {
+pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: std.StringArrayHashMap(Textures.TextureStore)) anyerror!Level.Level {
     const leveldata_path: []const u8 = try std.fmt.allocPrint(allocator, "data/levels/{d}/level.json", .{level_id});
     const raw_leveldata = try std.fs.cwd().readFileAlloc(allocator, leveldata_path, @as(usize, @intFromFloat(@exp2(20.0))));
     const parsed_leveldata = try json.parseFromSlice(json.Value, allocator, raw_leveldata, .{});
@@ -82,11 +82,11 @@ pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: []rl.Textu
     };
 }
 
-fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: []rl.Texture2D) anyerror!Level.Room {
+fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: std.StringArrayHashMap(Textures.TextureStore)) anyerror!Level.Room {
     // TODO
-    // change this to load the file from some useful place OR embed the data files that shouldn't change like this one
+    // change this to load the file from some useful place OR embed the data files that shouldn't change
     const room_file_path: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.json", .{ level_id, room_id });
-    const room_texture_filename: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "{d}/room_{d}", .{ level_id, room_id });
+    const room_texture_filename: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.png", .{ level_id, room_id });
     const room_file_raw = try std.fs.cwd().readFileAlloc(allocator, room_file_path, @as(usize, @intFromFloat(@exp2(20.0))));
     const parsed = try json.parseFromSlice(
         json.Value,
@@ -100,7 +100,8 @@ fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: [
     const width: u16 = @intCast(parsed.value.object.get("width").?.integer);
     const height: u16 = @intCast(parsed.value.object.get("height").?.integer);
     ret.dimensions = @Vector(2, u16){ width, height };
-    ret.texture = &textures[Textures.getImageId(room_texture_filename)[0]];
+    // This is technically a memory leak, I think
+    ret.texture = rl.loadTextureFromImage(rl.loadImage(room_texture_filename));
 
     ret.room_type = try mapRoomtypeToEnum(parsed.value.object.get("roomtype").?.string);
 
@@ -125,7 +126,16 @@ fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: [
                 },
                 .hp = enemy_data.hp,
                 .meta = World.WorldItemMetadata{ .enemy = .{
-                    .animation = Textures.animation(u3).init(0.2, textures[enemy_data.animation[0]..enemy_data.animation[1]]),
+                    .animation = Textures.Animation{
+                        .nr_frames = 8,
+                        .frametime = 0.2,
+                        .avalilable_directions = 1,
+                        .frames = bll: {
+                            const framebuffer = try allocator.alloc([]rl.Texture2D, 1);
+                            framebuffer[0] = Textures.getTextures(textures, enemy_data.animation_name).slice;
+                            break :bll framebuffer;
+                        },
+                    },
                     .attack_type = @enumFromInt(enemy_data.attack_type),
                 } },
             };
@@ -133,17 +143,6 @@ fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: [
         break :blk enemy_buffer;
     } else null;
     return ret;
-}
-
-fn processEnemies(allocator: std.mem.Allocator, enemies: []json.Value.objectMap) []IntermediaryEnemyRepresentation {
-    var buffer = allocator.alloc(IntermediaryEnemyRepresentation, enemies.items.len);
-    for (enemies.items, 0..) |enemy, i| {
-        buffer[i] = IntermediaryEnemyRepresentation{
-            .enemytype = enemy.get("type").?.string,
-            .x = enemy.get("x").?.float,
-            .y = enemy.get("y").?.float,
-        };
-    }
 }
 
 fn mapActionToInputAction(action: []const u8) !Input.InputAction {

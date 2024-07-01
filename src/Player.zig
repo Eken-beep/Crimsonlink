@@ -60,7 +60,7 @@ inventory: struct {
 },
 
 pub const Item = struct {
-    image: *rl.Texture2D,
+    image: rl.Texture2D,
     // We use 255 stacks
     ammount: u8,
     type: enum {
