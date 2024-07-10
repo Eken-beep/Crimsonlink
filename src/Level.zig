@@ -5,6 +5,10 @@ const World = @import("World.zig");
 
 const print = std.debug.print;
 
+const LevelGenerationError = error{
+    OutOfMemory,
+};
+
 pub const Level = struct {
     id: u8,
 
@@ -71,7 +75,7 @@ pub const Room = struct {
 };
 
 // The room taken as argument here is just a bunch of disconnected nulled ones, gets connected here
-pub fn genLevel(allocator: std.mem.Allocator, room_types: []Room) !*Room {
+pub fn genLevel(allocator: std.mem.Allocator, room_types: []Room) LevelGenerationError!*Room {
     // Room 0, 1, 2 in this list are saved for spawn boss and loot
     // Begin by passing in the first room to the function, spawn is first in the tree
     const seed: u64 = undefined;
@@ -111,7 +115,7 @@ fn makeRooms(
     loot_spawned: *f32,
     boss_has_spawned: *bool,
     can_have_children: bool,
-) !*Room {
+) LevelGenerationError!*Room {
     // Reduce the probability of creating a new room by half for each generated room
     const new_depth = depth / 2;
     const return_room = try allocator.create(Room);

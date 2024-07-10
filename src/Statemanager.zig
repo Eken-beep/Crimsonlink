@@ -20,12 +20,15 @@ pub const State = enum {
     main_menu,
     level,
     level_paused,
+    exit_game,
 };
 
 state: State,
 gui: []Gui.GuiSegment,
+halt_gui_rendering: bool,
 gui_arena: std.heap.ArenaAllocator,
 gui_state: Gui.GuiState,
+gui_parent_state: Gui.GuiState,
 current_room: ?*Level.Room,
 current_level: ?Level.Level,
 allocator: std.mem.Allocator,
@@ -37,8 +40,10 @@ pub fn init(backing_allocator: std.mem.Allocator, textures: Textures.TextureMap)
     var result = Self{
         .state = .main_menu,
         .gui = undefined,
+        .halt_gui_rendering = false,
         .gui_arena = std.heap.ArenaAllocator.init(backing_allocator),
         .gui_state = .mainmenu_0,
+        .gui_parent_state = .none,
         .current_level = null,
         .current_room = null,
         .allocator = backing_allocator,
@@ -50,11 +55,9 @@ pub fn init(backing_allocator: std.mem.Allocator, textures: Textures.TextureMap)
 }
 
 // The level does not manage the world, rather the layout of the rooms
-pub fn loadLevel(self: *Self, id: u8, textures: std.StringArrayHashMap(Textures.TextureStore), player: *Player, world: *World) !void {
+pub fn loadLevel(self: *Self, id: u8, textures: Textures.TextureMap, player: *Player, world: *World) !void {
     self.state = .level;
     self.gui_state = .level;
-
-    try self.reloadGui(textures, player);
 
     self.current_level = try Json.getLevel(id, self.level_allocator, textures);
     // Setting the current room to the first room (spawn)
@@ -73,7 +76,7 @@ pub fn unloadLevel(self: *Self) void {
 // like setting the pointers to the data
 pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player) !void {
     // We keep the capacity when reloading the gui during a level or inside a menu
-    _ = self.gui_arena.reset(.retain_capacity);
+    if (!self.halt_gui_rendering) _ = self.gui_arena.reset(.retain_capacity);
 
     switch (self.gui_state) {
         .mainmenu_0 => {
@@ -86,6 +89,9 @@ pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player) !v
         },
         .level_paused => {
             self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level_paused, textures);
+        },
+        .settings_main => {
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .settings_main, textures);
         },
         else => unreachable,
     }
@@ -147,7 +153,7 @@ pub fn loadRoom(self: *Self, textures: Textures.TextureMap, player: *Player, roo
     return world;
 }
 
-pub fn pauseLevel(self: *Self, world: *World, textures: std.StringArrayHashMap(Textures.TextureStore), player: *Player) anyerror!void {
+pub fn pauseLevel(self: *Self, world: *World, textures: std.StringArrayHashMap(Textures.TextureStore), player: *Player) !void {
     //if (self.state != .level or self.state != .level_paused) return StateError.StateNotPausable;
     world.paused = !world.paused;
     self.gui_state = if (world.paused) .level_paused else .level;

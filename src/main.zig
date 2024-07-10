@@ -20,9 +20,9 @@ const color = rl.Color;
 
 const fullscreen = true;
 pub fn main() anyerror!void {
-    rl.setConfigFlags(rl.ConfigFlags{ .window_resizable = true });
-    rl.setExitKey(rl.KeyboardKey.key_null);
     rl.initWindow(1600, 900, "~Crimsonlink~");
+    rl.setWindowState(rl.ConfigFlags{ .window_resizable = true });
+    rl.setExitKey(rl.KeyboardKey.key_null);
     rl.setTargetFPS(60);
     defer rl.closeWindow();
 
@@ -48,7 +48,7 @@ pub fn main() anyerror!void {
 
     var goto_room: Level.Direction = .None;
 
-    while (!rl.windowShouldClose()) {
+    while (!(rl.windowShouldClose() or state.state == .exit_game)) {
         if (rl.isWindowResized()) {
             // isn't going to overflow as u16 anyways so who cares
             window.update(@as(u16, @intCast(rl.getRenderWidth())), @as(u16, @intCast(rl.getRenderHeight())), 1600, 900);
@@ -111,9 +111,15 @@ pub fn main() anyerror!void {
                     &player,
                 );
             },
-            else => unreachable,
+            else => {},
         }
         rl.clearBackground(color.black);
+        if (state.halt_gui_rendering) {
+            _ = state.gui_arena.reset(.retain_capacity);
+            state.halt_gui_rendering = false;
+
+            try state.reloadGui(textures, &player);
+        }
     }
     state.unloadLevel();
 }

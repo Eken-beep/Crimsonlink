@@ -12,11 +12,13 @@ const color = rl.Color;
 const Self = @This();
 
 pub const GuiState = enum {
+    none,
     level,
     level_paused,
 
     mainmenu_0,
-    mainmenu_1,
+
+    settings_main,
 };
 
 // GUI layout
@@ -40,6 +42,7 @@ pub const GuiSegment = struct {
 };
 
 const GuiItem = union(enum) {
+    columnbreak,
     ctr: Container,
     lbl: Label,
     btn: Button,
@@ -73,12 +76,12 @@ const Label = struct {
 
 const Button = struct {
     text: [:0]const u8,
-    width: u16,
-    height: u16,
+    width: u16 = 300,
+    height: u16 = 50,
 
-    border_color: rl.Color,
-    bg_color: rl.Color,
-    fg_color: rl.Color,
+    border_color: rl.Color = color.white,
+    bg_color: rl.Color = color.gray,
+    fg_color: rl.Color = color.black,
 
     // This is horrible and can be done better, idk how
     action: *const fn (
@@ -117,26 +120,64 @@ pub fn reloadGui(
 ) !void {
     for (gui) |segment| {
         // This one gets moved after each thing is drawn
-        var cursor = getCursorStart(segment.pos, segment.column_width * segment.columns, window);
+        var cursor = getCursorStart(segment.pos, (segment.column_width + window.gui_spacing) * segment.columns, window);
         // This one only for reference
         const cursorStartPoint = cursor;
 
         var element_id: usize = 0;
         var current_column: u16 = 0;
-        while (current_column < segment.columns) : (current_column += 1) {
-            cursor[0] = cursorStartPoint[0] + current_column * segment.column_width + 2 * window.gui_spacing;
+        columnLoop: while (current_column < segment.columns) : (current_column += 1) {
+            cursor[0] = cursorStartPoint[0] + current_column * (segment.column_width + 2 * window.gui_spacing);
             // reset the y of the cursor
             cursor[1] = cursorStartPoint[1];
-            while (element_id < segment.elements.len) : (element_id += 1) {
+            while (element_id < getLastElementInColumn(
+                segment.elements.len,
+                segment.columns,
+                current_column,
+            )) : (element_id += 1) {
+                const element_size = drawElement(
+                    segment.elements[element_id],
+                    cursor,
+                    window,
+                    mouse,
+                    state,
+                    textures,
+                    world,
+                    player,
+                ) catch |err| switch (err) {
+                    // Abuse of errors
+                    ElementDrawError.ColumnBreak => {
+                        current_column += 1;
+                        element_id += 1;
+                        continue :columnLoop;
+                    },
+                    else => return err,
+                };
                 if (cursor[2] == 0) {
-                    cursor[1] += (try drawElement(segment.elements[element_id], cursor, window, mouse, state, textures, world, player))[1];
+                    cursor[1] += element_size[1];
                 } else {
-                    cursor[1] -= (try drawElement(segment.elements[element_id], cursor, window, mouse, state, textures, world, player))[1];
+                    cursor[1] -= element_size[1];
                 }
             }
         }
     }
 }
+
+// This is perhaphs too primitive as it only supports having all the overflowing elements on the end of the last row
+fn getLastElementInColumn(nr_elements: usize, nr_columns: usize, current_column: usize) usize {
+    const elements_per_column = nr_elements / nr_columns;
+    if (current_column == nr_columns - 1) {
+        return nr_elements;
+    } else {
+        return (current_column + 1) * elements_per_column;
+    }
+}
+
+const ElementDrawError = error{
+    UnimplementedGuiComponent,
+    InvalidColumnLayout,
+    ColumnBreak,
+};
 
 fn drawElement(
     element: GuiItem,
@@ -147,16 +188,19 @@ fn drawElement(
     textures: Textures.TextureMap,
     world: *World,
     player: *Player,
+    // Due to the definition of the button action function this has to be an inferred error
 ) !@Vector(2, u16) {
     switch (element) {
         .btn => |btn| {
-            if (mouse) |m| {
+            if (mouse) |m|
                 // Check if the cursor overlaps with the currently drawing button
                 // Their positions are only known while being drawn
                 if (m[0] > cursor[0] and m[0] < cursor[0] + btn.width)
-                    if (m[1] > cursor[1] and m[1] < cursor[1] + btn.height)
+                    if (m[1] > cursor[1] and m[1] < cursor[1] + btn.height) {
+                        std.debug.print("Clicked a button: {s}\n", .{btn.text});
                         try btn.action(state, textures, world, player);
-            }
+                    };
+
             drawObjFrame(cursor[0], cursor[1] - if (cursor[2] == 1) btn.height else 0, btn.width, btn.height, btn.bg_color, btn.border_color, window.gui_scale);
             const txt_len: i32 = @intCast(rl.measureText(btn.text, window.fontsize));
             rl.drawText(
@@ -166,7 +210,7 @@ fn drawElement(
                 window.fontsize,
                 btn.fg_color,
             );
-            return @Vector(2, u16){ btn.width, btn.height };
+            return @Vector(2, u16){ btn.width, btn.height + window.gui_spacing };
         },
         .row => |row| {
             var current_height: u16 = 0;
@@ -182,7 +226,7 @@ fn drawElement(
             return @Vector(2, u16){ local_cursorx, current_height };
         },
         .lbl => |lbl| {
-            var local_cursorx = cursor[0];
+            var local_cursorx = cursor[0] + window.gui_spacing * window.gui_scale;
             var height: u16 = 0;
             if (lbl.image) |image| {
                 const w: u16 = @intCast(image.width);
@@ -236,7 +280,8 @@ fn drawElement(
         },
         // The x here does not matter, spacers cant be in rows anyways
         .spc => |spacer| return @Vector(2, u16){ 0, spacer },
-        else => return error.UnimplementedGuiComponent,
+        .columnbreak => return ElementDrawError.ColumnBreak,
+        else => return ElementDrawError.UnimplementedGuiComponent,
     }
 }
 
@@ -290,8 +335,8 @@ fn getCursorStart(pos: Position, column_size: u16, window: Window) @Vector(3, u1
 // GuiSegment contains a position on the screen which the draw function takes along with the number of columns and items
 // and then puts a cursor on that position and begins drawing everything from there, dividing len(elements) by columns to figure
 // out when we need to break the line and begin the next one, useful in menus and stuff
-
-pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures.TextureMap) ![]GuiSegment {
+const GuiInitError = error{ OutOfMemory, IncorrectGuiState };
+pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures.TextureMap) GuiInitError![]GuiSegment {
     std.debug.print("Loaded gui state {any}\n", .{state});
     switch (state) {
         .level => {
@@ -326,25 +371,28 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .pos = .top_middle,
                 .columns = 1,
                 .column_width = 300,
-                .elements = undefined,
+                .elements = try allocator.alloc(GuiItem, 4),
             };
-            result[0].elements = try allocator.alloc(GuiItem, 2);
             result[0].elements[0] = .{ .spc = 300 };
             result[0].elements[1] = .{ .btn = .{
                 .text = "Start",
-                .width = 300,
-                .height = 50,
-                .border_color = color.white,
-                .bg_color = color.gray,
-                .fg_color = color.black,
                 .action = btn_launchGame,
             } };
+            result[0].elements[2] = .{ .btn = .{
+                .text = "Settings",
+                .action = btn_setState_settings,
+            } };
+            result[0].elements[3] = .{ .btn = .{
+                .text = "Quit",
+                .action = btn_quitGame,
+            } };
+
             return result;
         },
 
         .level_paused => {
-            // Pause text
             var result = try allocator.alloc(GuiSegment, 2);
+            // Pause text
             result[0] = .{
                 .pos = .bottom_right,
                 .columns = 1,
@@ -363,31 +411,99 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .pos = .top_middle,
                 .columns = 1,
                 .column_width = 300,
-                .elements = try allocator.alloc(GuiItem, 2),
+                .elements = try allocator.alloc(GuiItem, 4),
             };
             result[1].elements[0] = .{ .spc = 300 };
             result[1].elements[1] = .{ .btn = .{
-                .bg_color = color.gray,
-                .fg_color = color.black,
-                .border_color = color.white,
                 .text = "Resume Game",
-                .width = 300,
-                .height = 50,
                 .action = btn_unpauseGame,
+            } };
+            result[1].elements[2] = .{ .btn = .{
+                .text = "Settings",
+                .action = btn_setState_settings,
+            } };
+            result[1].elements[3] = .{ .btn = .{
+                .text = "Quit game",
+                .action = btn_quitGame,
             } };
             return result;
         },
 
-        else => return error.IncorrectGuiState,
+        .settings_main => {
+            var result = try allocator.alloc(GuiSegment, 1);
+            result[0] = .{
+                .pos = .top_middle,
+                .columns = 2,
+                .column_width = 300,
+                .elements = try allocator.alloc(GuiItem, 5),
+            };
+
+            // Column 1
+            result[0].elements[0] = .{ .spc = 300 };
+            result[0].elements[1] = .{ .btn = .{
+                .text = "Fullscreen",
+                .action = btn_setting_fullscreen,
+            } };
+
+            // Column 2
+            result[0].elements[2] = .{ .spc = 300 };
+            result[0].elements[3] = .{ .btn = .{
+                .text = "Back",
+                .action = btn_loadParentState,
+            } };
+            result[0].elements[4] = .{ .lbl = .{
+                .fg_color = color.gray,
+                .image = null,
+                .text_source = null,
+                .text = "placeholder",
+            } };
+
+            return result;
+        },
+
+        else => return GuiInitError.IncorrectGuiState,
     }
 }
 
-fn btn_launchGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) anyerror!void {
+fn btn_launchGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) !void {
     state.*.state = .level;
+    // Note about this
+    // The ram has to be freed in the main function by setting the
+    // halt_gui_rendering variable of the state
     try state.*.loadLevel(1, textures, player, world);
-    //std.debug.print("{any}", .{state.current_level.?.rooms.*.room_type});
-    //state.*.current_level.?.rooms.*.printSelf(.None, 1);
+    state.halt_gui_rendering = true;
 }
-fn btn_unpauseGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) anyerror!void {
+fn btn_unpauseGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) !void {
     try state.pauseLevel(world, textures, player);
+}
+fn btn_quitGame(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+    state.state = .exit_game;
+    // For some reason closing the window here makes the program segfault
+    //rl.closeWindow();
+}
+
+fn btn_loadParentState(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+    state.gui_state = state.gui_parent_state;
+    state.gui_parent_state = .none;
+    state.halt_gui_rendering = true;
+}
+fn btn_setState_settings(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+    state.gui_parent_state = state.gui_state;
+    state.gui_state = .settings_main;
+    state.halt_gui_rendering = true;
+}
+fn btn_setState_mainMenu(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+    state.gui_state = .mainmenu_0;
+    state.halt_gui_rendering = true;
+}
+fn btn_setState_levelPaused(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+    state.gui_state = .level_paused;
+    state.halt_gui_rendering = true;
+}
+fn btn_setting_fullscreen(_: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+    if (rl.isWindowState(.{ .fullscreen_mode = true })) {
+        rl.setWindowState(.{ .fullscreen_mode = false, .window_resizable = true });
+    } else {
+        rl.setWindowState(.{ .fullscreen_mode = true, .window_resizable = false });
+    }
 }

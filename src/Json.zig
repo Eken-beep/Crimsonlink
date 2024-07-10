@@ -14,19 +14,34 @@ const DefaultKeybinds = @embedFile("datapresets/DefaultBindings.json");
 
 const json = std.json;
 
-pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator, textures: Textures.TextureMap) !Player {
+const ConfigurationError = error{
+    OutOfMemory,
+    FailedToAccessConfig,
+    FailedToAccessRoomData,
+    FailedToAccessLevelData,
+    JsonParseError,
+    InvalidKeybindingConfig,
+    InvalidPlayerdataFile,
+    InvalidMapdataFile,
+};
+
+pub fn loadPlayerData(
+    file: ?[]const u8,
+    allocator: std.mem.Allocator,
+    textures: Textures.TextureMap,
+) ConfigurationError!Player {
     const RawPlayerData = struct {
         hp: u8,
         max_hp: u8,
         damage: u8,
         dogecoins: u10,
     };
-    const parsed = try std.json.parseFromSlice(
+    const parsed = std.json.parseFromSlice(
         RawPlayerData,
         allocator,
         file orelse DefaultPlayerData,
         .{},
-    );
+    ) catch return ConfigurationError.JsonParseError;
     const v = parsed.value;
     return Player{
         .hp = v.hp,
@@ -43,18 +58,22 @@ pub fn loadPlayerData(file: ?[]const u8, allocator: std.mem.Allocator, textures:
     };
 }
 
-const ConfigParseError = error{InvalidKeyConfig};
 // Inconsistent with the other loading functions who use a return instead of pointer
 pub fn loadKeybindings(
     configfile: ?[]const u8,
     keybindings: *std.AutoHashMap(i10, Input.InputAction),
     allocator: std.mem.Allocator,
-) !void {
-    const parsed = try json.parseFromSlice(json.Value, allocator, configfile orelse DefaultKeybinds, .{});
+) ConfigurationError!void {
+    const parsed = json.parseFromSlice(
+        json.Value,
+        allocator,
+        configfile orelse DefaultKeybinds,
+        .{},
+    ) catch return ConfigurationError.JsonParseError;
     const keyarray = parsed.value.array.items;
     for (keyarray) |keybindobject| {
-        const bind = keybindobject.object.get("key") orelse return ConfigParseError.InvalidKeyConfig;
-        const action = keybindobject.object.get("action") orelse return ConfigParseError.InvalidKeyConfig;
+        const bind = keybindobject.object.get("key") orelse return ConfigurationError.InvalidKeybindingConfig;
+        const action = keybindobject.object.get("action") orelse return ConfigurationError.InvalidKeybindingConfig;
         try keybindings.put(@as(i10, @intCast(bind.integer)), try mapActionToInputAction(action.string));
     }
 }
@@ -65,10 +84,19 @@ const IntermediaryEnemyRepresentation = struct {
     y: f64,
 };
 
-pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: std.StringArrayHashMap(Textures.TextureStore)) anyerror!Level.Level {
+pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: std.StringArrayHashMap(Textures.TextureStore)) ConfigurationError!Level.Level {
     const leveldata_path: []const u8 = try std.fmt.allocPrint(allocator, "data/levels/{d}/level.json", .{level_id});
-    const raw_leveldata = try std.fs.cwd().readFileAlloc(allocator, leveldata_path, @as(usize, @intFromFloat(@exp2(20.0))));
-    const parsed_leveldata = try json.parseFromSlice(json.Value, allocator, raw_leveldata, .{});
+    const raw_leveldata = std.fs.cwd().readFileAlloc(
+        allocator,
+        leveldata_path,
+        @as(usize, @intFromFloat(@exp2(20.0))),
+    ) catch return ConfigurationError.FailedToAccessLevelData;
+    const parsed_leveldata = json.parseFromSlice(
+        json.Value,
+        allocator,
+        raw_leveldata,
+        .{},
+    ) catch return ConfigurationError.JsonParseError;
     const nr_rooms: u8 = @intCast(parsed_leveldata.value.object.get("rooms").?.integer);
 
     const rooms = try allocator.alloc(Level.Room, nr_rooms);
@@ -82,18 +110,27 @@ pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: std.String
     };
 }
 
-fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: std.StringArrayHashMap(Textures.TextureStore)) anyerror!Level.Room {
+fn loadRoom(
+    level_id: u8,
+    room_id: u8,
+    allocator: std.mem.Allocator,
+    textures: std.StringArrayHashMap(Textures.TextureStore),
+) ConfigurationError!Level.Room {
     // TODO
     // change this to load the file from some useful place OR embed the data files that shouldn't change
     const room_file_path: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.json", .{ level_id, room_id });
     const room_texture_filename: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.png", .{ level_id, room_id });
-    const room_file_raw = try std.fs.cwd().readFileAlloc(allocator, room_file_path, @as(usize, @intFromFloat(@exp2(20.0))));
-    const parsed = try json.parseFromSlice(
+    const room_file_raw = std.fs.cwd().readFileAlloc(
+        allocator,
+        room_file_path,
+        @as(usize, @intFromFloat(@exp2(20.0))),
+    ) catch return ConfigurationError.FailedToAccessRoomData;
+    const parsed = json.parseFromSlice(
         json.Value,
         allocator,
         room_file_raw,
         .{},
-    );
+    ) catch return ConfigurationError.JsonParseError;
 
     var ret: Level.Room = undefined;
 
@@ -111,7 +148,7 @@ fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: s
         const enemies = e.array.items;
         var enemy_buffer = try allocator.alloc(World.WorldItem, enemies.len);
         for (enemies, 0..) |raw_enemy, i| {
-            const enemy_data = try EnemyTypes.mapClassToType(raw_enemy.object.get("type").?.string);
+            const enemy_data = EnemyTypes.mapClassToType(raw_enemy.object.get("type").?.string) catch return ConfigurationError.InvalidMapdataFile;
             enemy_buffer[i] = World.WorldItem{
                 .c = .{
                     .pos = @Vector(2, f32){
@@ -145,7 +182,7 @@ fn loadRoom(level_id: u8, room_id: u8, allocator: std.mem.Allocator, textures: s
     return ret;
 }
 
-fn mapActionToInputAction(action: []const u8) !Input.InputAction {
+fn mapActionToInputAction(action: []const u8) ConfigurationError!Input.InputAction {
     // This abomination is zig fmt's fault
     if (std.mem.eql(u8, "moveup", action)) return Input.InputAction.moveup;
     if (std.mem.eql(u8, "moveleft", action)) return Input.InputAction.moveleft;
@@ -158,13 +195,13 @@ fn mapActionToInputAction(action: []const u8) !Input.InputAction {
     if (std.mem.eql(u8, "shoot_begin", action)) return Input.InputAction.shoot_begin;
     if (std.mem.eql(u8, "shoot_end", action)) return Input.InputAction.shoot_end;
     if (std.mem.eql(u8, "pause", action)) return Input.InputAction.pause;
-    return error.InvalidKeyConfig;
+    return ConfigurationError.InvalidMapdataFile;
 }
 
-fn mapRoomtypeToEnum(roomtype: []const u8) !Level.RoomType {
+fn mapRoomtypeToEnum(roomtype: []const u8) ConfigurationError!Level.RoomType {
     if (std.mem.eql(u8, "normal", roomtype)) return Level.RoomType.Normal;
     if (std.mem.eql(u8, "spawn", roomtype)) return Level.RoomType.Spawn;
     if (std.mem.eql(u8, "loot", roomtype)) return Level.RoomType.Loot;
     if (std.mem.eql(u8, "boss", roomtype)) return Level.RoomType.Boss;
-    return error.InvalidMapData;
+    return ConfigurationError.InvalidMapdataFile;
 }
