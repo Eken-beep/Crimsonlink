@@ -56,7 +56,14 @@ pub fn loadPlayerData(
 
             break :blk tmp;
         },
-        .inventory = .{ .dogecoins = v.dogecoins, .items = [1]?Player.Item{null} ** 10 },
+        .inventory = .{
+            .dogecoins = v.dogecoins,
+            .items = [4]?Player.Item{ null, null, null, Player.Item{
+                .ammount = 5,
+                .type = .slime,
+                .image = textures.get("slime").?.single,
+            } },
+        },
     };
 }
 
@@ -160,7 +167,10 @@ fn loadRoom(
                     .centerpoint = @Vector(2, f16){ enemy_data.width / 2, enemy_data.height / 2 },
                     .hitbox = @Vector(2, f16){ enemy_data.width, enemy_data.height },
                     .vel = @splat(0),
-                    .collision = .kinetic,
+                    .flags = .{
+                        .kinetic = true,
+                        .transparent = false,
+                    },
                     .texture_offset = @splat(0),
                 },
                 .hp = enemy_data.hp,

@@ -9,15 +9,11 @@ pub const Collider = struct {
     vel: @Vector(2, f32),
     hitbox: @Vector(2, f16),
     centerpoint: @Vector(2, f16),
-    collision: ColliderType,
+    flags: Flags,
     texture_offset: @Vector(2, f16),
     effect: @Vector(2, f32) = @splat(0),
-    // These two are only here because many different world objects can have weapons
-    // Should be null on everything that can't wield a weapon
-    // If this is null then the guy is permanently barehanded
+    // This being null means the thing can't hold a weapon
     weapon_mount: ?@Vector(2, f16) = null,
-    // However only this being null means he is temporarily barehanded
-    weapon: ?Items.Weapon = null,
 };
 
 const ColliderType = enum {
@@ -43,6 +39,13 @@ const Direction = enum {
     left,
     right,
     invalid,
+};
+
+const Flags = packed struct {
+    // Can it move
+    kinetic: bool,
+    // Will it collide with other objects
+    transparent: bool,
 };
 
 pub fn applyVelocity(
@@ -163,9 +166,9 @@ fn resolve(
         };
     }
     // If this isn't a possible item pickup then just exit for all transparent items
-    if (b.collision == .transparent) return .none;
-    if (a_meta == .bullet and b.collision == .static) return .kill;
-    if (a_meta == .bullet and b.collision == .kinetic) {
+    if (b.flags.transparent) return .none;
+    if (a_meta == .bullet and !b.flags.kinetic) return .kill;
+    if (a_meta == .bullet and b.flags.kinetic) {
         if (a_meta.bullet.owner == .enemy and b_meta == .player) {
             return Resolution{ .damage = b_index };
         } else if (a_meta.bullet.owner == .player and b_meta == .enemy) {
@@ -178,14 +181,14 @@ fn resolve(
         }
     }
     // Just check one way between bullet and kinetic
-    if (b_meta == .bullet and a.collision == .kinetic) return .none;
-    if (a.collision == .kinetic and b.collision == .kinetic) {
+    if (b_meta == .bullet and a.flags.kinetic) return .none;
+    if (a.flags.kinetic and b.flags.kinetic) {
         if (a_meta == .bullet and b_meta == .bullet) return .none;
         return .spread;
     }
-    if (a.collision == .kinetic and b.collision == .static) return .{ .stop = getCollisionDirection(a, b) };
+    if (a.flags.kinetic and !b.flags.kinetic) return .{ .stop = getCollisionDirection(a, b) };
     // As long as it isn't an enemy and player colliding
-    if (a.collision == b.collision) {
+    if (a.flags.kinetic == b.flags.kinetic and a.flags.transparent == b.flags.transparent) {
         if (a_meta == .enemy and b_meta == .player) return Resolution{ .damage = b_index } else return .none;
     }
     return .none;

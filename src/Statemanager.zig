@@ -86,6 +86,12 @@ pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player) !v
             self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures);
             self.gui[0].elements[0].hpm.source = &player.*.hp;
             self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
+
+            // This is always the inventory, otherwise ded
+            std.debug.assert(self.gui[1].elements[0] == .inventory_slot);
+            for (self.gui[1].elements, 0..) |*slot, i| {
+                slot.inventory_slot.slot_source = &player.*.inventory.items[i];
+            }
         },
         .level_paused => {
             self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level_paused, textures);

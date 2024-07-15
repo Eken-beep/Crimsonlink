@@ -50,6 +50,7 @@ const GuiItem = union(enum) {
     spc: u16,
     row: []GuiItem,
     hpm: HitpointMeter,
+    inventory_slot: InventorySlot,
 };
 
 // GUI item definitions
@@ -107,6 +108,11 @@ const ProgressBar = struct {
 const HitpointMeter = struct {
     source: *u16,
     image: rl.Texture2D,
+};
+
+const InventorySlot = struct {
+    slot_source: *?Player.Item,
+    id: usize,
 };
 
 pub fn reloadGui(
@@ -278,6 +284,16 @@ fn drawElement(
             }
             return @Vector(2, u16){ @intCast(hpm.image.width * hpm.source.*), @intCast(hpm.image.height) };
         },
+        .inventory_slot => |slot| {
+            rl.drawRectangleLines(cursor[0], cursor[1] - 80, 80, 80, color.gray);
+            if (slot.slot_source.*) |item| {
+                rl.drawTexture(item.image, cursor[0], cursor[1] - 80, color.white);
+                var text_buffer = [3:0]u8{ ' ', ' ', ' ' };
+                _ = try std.fmt.bufPrint(&text_buffer, "{d: <3}", .{item.ammount});
+                rl.drawText(&text_buffer, cursor[0] + 10, cursor[1] + 10 - 80, window.fontsize, color.dark_gray);
+            }
+            return @Vector(2, u16){ 80, 80 + window.gui_spacing * window.gui_scale };
+        },
         // The x here does not matter, spacers cant be in rows anyways
         .spc => |spacer| return @Vector(2, u16){ 0, spacer },
         .columnbreak => return ElementDrawError.ColumnBreak,
@@ -340,7 +356,7 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
     std.debug.print("Loaded gui state {any}\n", .{state});
     switch (state) {
         .level => {
-            var result = try allocator.alloc(GuiSegment, 1);
+            var result = try allocator.alloc(GuiSegment, 2);
             result[0] = .{
                 .pos = .top_left,
                 .columns = 1,
@@ -362,6 +378,20 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                     .text_source = null,
                 },
             };
+
+            // The hotbar
+            result[1] = .{
+                .pos = .bottom_left,
+                .columns = 1,
+                .column_width = 50,
+                .elements = try allocator.alloc(GuiItem, 4),
+            };
+            for (result[1].elements, 0..) |*element, i| {
+                element.* = .{ .inventory_slot = .{
+                    .id = i,
+                    .slot_source = undefined,
+                } };
+            }
             return result;
         },
 

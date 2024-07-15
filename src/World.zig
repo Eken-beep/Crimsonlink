@@ -62,7 +62,9 @@ pub const WorldItem = struct {
 };
 
 pub const WorldItemMetadata = union(enum) {
-    player: Textures.Animation,
+    player: struct {
+        animation: Textures.Animation,
+    },
     bullet: struct {
         damage: u16,
         owner: enum {
@@ -117,13 +119,17 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .vel = @splat(0),
                     .hitbox = @Vector(2, f16){ 18 * 4, 52 * 4 },
                     .centerpoint = @Vector(2, f16){ 9 * 4, 26 * 4 },
-                    .collision = .kinetic,
+                    .flags = .{
+                        .kinetic = true,
+                        .transparent = false,
+                    },
                     .texture_offset = @Vector(2, f16){ -PLAYERSPRITEWIDTH, 0 },
-                    .weapon = item.weapon,
                     .weapon_mount = @Vector(2, f16){ 36, 104 },
                 },
                 .hp = 1,
-                .meta = WorldItemMetadata{ .player = item.animation },
+                .meta = WorldItemMetadata{ .player = .{
+                    .animation = item.animation,
+                } },
             });
         },
         .enemy => {
@@ -133,7 +139,10 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .vel = @splat(0),
                     .hitbox = @splat(50),
                     .centerpoint = @splat(25),
-                    .collision = .kinetic,
+                    .flags = .{
+                        .kinetic = true,
+                        .transparent = false,
+                    },
                     .texture_offset = @splat(0),
                 },
                 .hp = item.hp,
@@ -150,7 +159,10 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .vel = @Vector(2, f32){ item.vx, item.vy },
                     .hitbox = @splat(5),
                     .centerpoint = @splat(25),
-                    .collision = .kinetic,
+                    .flags = .{
+                        .kinetic = true,
+                        .transparent = true,
+                    },
                     .texture_offset = @Vector(2, f16){ 5, 5 },
                 },
                 .hp = item.damage,
@@ -167,7 +179,10 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .vel = @splat(0),
                     .hitbox = @splat(10),
                     .centerpoint = @splat(5),
-                    .collision = .transparent,
+                    .flags = .{
+                        .kinetic = false,
+                        .transparent = true,
+                    },
                     .texture_offset = @splat(0),
                 },
                 .hp = 1,
@@ -188,7 +203,10 @@ pub fn addItem(self: *Self, item: anytype) !void {
                         @as(f16, @floatFromInt(item.sprite.*.height)),
                     },
                     .centerpoint = @splat(0),
-                    .collision = .static,
+                    .flags = .{
+                        .kinetic = false,
+                        .transparent = false,
+                    },
                     .texture_offset = @splat(0),
                 },
                 .hp = 1,
@@ -213,7 +231,10 @@ pub fn addItem(self: *Self, item: anytype) !void {
                         else => @Vector(2, f16){ 5, 100 },
                     },
                     .centerpoint = @splat(0),
-                    .collision = .static,
+                    .flags = .{
+                        .kinetic = false,
+                        .transparent = false,
+                    },
                     .texture_offset = @splat(0),
                 },
                 .hp = 1,
@@ -250,7 +271,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
         switch (item.meta) {
             .player => |p| {
                 // check if velocity isn't 0 to check for movement
-                self.items.items[i].meta.player.step(rl.getFrameTime(), item.c.vel[0] != 0 or item.c.vel[1] != 0);
+                self.items.items[i].meta.player.animation.step(rl.getFrameTime(), item.c.vel[0] != 0 or item.c.vel[1] != 0);
 
                 // I give up just find the wierd movement and kill it
                 if (item.c.vel[0] > 0 and rl.isKeyUp(key.key_d)) self.items.items[i].c.vel[0] = 0;
@@ -259,7 +280,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                 if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
 
                 rl.drawTextureEx(
-                    p.getFrame(item.c.pos, item.c.vel),
+                    p.animation.getFrame(item.c.pos, item.c.vel),
                     makeRlVec2(self.items.items[i].c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -331,10 +352,10 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
         }
 
         if (item.c.weapon_mount) |weapon_mountpoint| {
-            if (item.c.weapon) |weapon| {
+            if (item.meta == .player) {
                 rl.drawTextureEx(
-                    weapon.texture,
-                    makeRlVec2(item.c.pos + weapon_mountpoint - item.c.weapon.?.handle, window.origin, window.scale),
+                    player.forehand.texture,
+                    makeRlVec2(item.c.pos + weapon_mountpoint - player.forehand.handle, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
                     rl.Color.white,
@@ -343,7 +364,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
         }
 
         // Then lastly we apply the velocity of the item
-        if (item.c.collision == .kinetic) {
+        if (item.c.flags.kinetic) {
             if (DRAW_HITBOXES) drawHitbox(
                 item.c.hitbox * @as(@Vector(2, f32), @splat(window.scale)),
                 (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,

@@ -19,7 +19,7 @@ hand_placement: @Vector(2, f16),
 inventory: struct {
     const Inventory = @This();
     // a null slot is empty
-    items: [10]?Item,
+    items: [4]?Item,
     dogecoins: u10,
     dogecoin_str_rep: [3:0]u8 = [3:0]u8{ '0', '0', '0' },
     pub fn add(self: *Inventory, i: *Item) error{InventoryFull}!void {
@@ -56,7 +56,7 @@ inventory: struct {
     }
 } = .{
     .dogecoins = 0,
-    .items = [1]?Item{null} ** 10,
+    .items = [1]?Item{null} ** 4,
 },
 
 pub const Item = struct {
@@ -73,9 +73,10 @@ pub const Item = struct {
 };
 
 pub fn mainAttack(self: *Self, world: *World, window: Window) !void {
+    if (world.paused) return;
     const mx: f32 = @floatFromInt(rl.getMouseX());
     const my: f32 = @floatFromInt(rl.getMouseY());
-    try world.items.append(if (world.items.items[0].c.weapon) |weapon| switch (weapon.range) {
+    try world.items.append(switch (self.forehand.range) {
         .melee => unreachable,
         .range => Items.makeBullet(
             self.forehand,
@@ -84,5 +85,5 @@ pub fn mainAttack(self: *Self, world: *World, window: Window) !void {
             window.origin,
             window.scale,
         ),
-    } else return error.NoWeapon);
+    });
 }

@@ -37,8 +37,8 @@ pub fn makeBullet(
 ) World.WorldItem {
     const weaponw: f32 = @floatFromInt(4 * gun.texture.width);
     const weaponh: f32 = @floatFromInt(4 * gun.texture.height);
-    const weaponx = owner.c.pos[0] + owner.c.weapon_mount.?[0] - owner.c.weapon.?.handle[0];
-    const weapony = owner.c.pos[1] + owner.c.weapon_mount.?[1] - owner.c.weapon.?.handle[0];
+    const weaponx = owner.c.pos[0] + owner.c.weapon_mount.?[0] - gun.handle[0];
+    const weapony = owner.c.pos[1] + owner.c.weapon_mount.?[1] - gun.handle[0];
     const angle = std.math.atan2(
         weapony + weaponh / 2 - (cursor[1] - window_origin[1]) / window_scale,
         weaponx + weaponw - (cursor[0] - window_origin[0]) / window_scale,
@@ -51,7 +51,10 @@ pub fn makeBullet(
                 weapony + weaponh / 2,
             },
             .vel = @Vector(2, f32){ @cos(angle) * -1000, @sin(angle) * -1000 },
-            .collision = .kinetic,
+            .flags = .{
+                .kinetic = true,
+                .transparent = true,
+            },
             .centerpoint = @splat(5),
             .effect = @splat(0),
             .hitbox = @splat(10),

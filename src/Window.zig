@@ -10,7 +10,7 @@ pub const WALLSIZE = 18 * PXSCALE;
 width: u16,
 height: u16,
 scale: f32,
-gui_scale: u2 = 1,
+gui_scale: u8 = 1,
 fontsize: u16 = 28,
 // Pixles we try to space the gui elements with
 gui_spacing: u16 = 18,
