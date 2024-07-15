@@ -2,6 +2,7 @@ const std = @import("std");
 const rl = @import("raylib");
 const Collider = @import("Collider.zig");
 const World = @import("World.zig");
+const CsvParser = @import("CsvParser.zig");
 
 pub const Weapon = struct {
     // Where on the gun is the handle? Anchored to the gun itself
@@ -67,14 +68,23 @@ pub fn makeBullet(
     };
 }
 
-pub const Weapons = .{
-    .Gun1 = Weapon{
-        .name = "gun",
-        .handle = @Vector(2, f16){ 15, 9 },
-        .range = WeaponRange{ .range = .{
-            .damage = 30,
-            .bullet_texture = undefined,
-        } },
-        .texture = undefined,
-    },
+pub const Weapons = blk: {
+    const raw = CsvParser.makeWeapons();
+    var result: [raw.len]Weapon = undefined;
+    for (raw, 0..) |raw_weapon, i| {
+        result[i] = Weapon{
+            .name = raw_weapon.name,
+            .handle = raw_weapon.handle,
+            .range = switch (raw_weapon.range) {
+                1 => WeaponRange{ .range = .{
+                    .bullet_texture = undefined,
+                    .damage = raw_weapon.damage,
+                } },
+                2 => unreachable,
+                else => unreachable,
+            },
+            .texture = undefined,
+        };
+    }
+    break :blk result;
 };

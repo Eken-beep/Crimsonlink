@@ -3,7 +3,7 @@ const rl = @import("raylib");
 const Player = @import("Player.zig");
 const World = @import("World.zig");
 const Statemanager = @import("Statemanager.zig");
-const EnemyTypes = @import("EnemyTypes.zig");
+const CsvParser = @import("CsvParser.zig");
 const Textures = @import("Textures.zig");
 const Input = @import("Input.zig");
 const Items = @import("Items.zig");
@@ -49,8 +49,10 @@ pub fn loadPlayerData(
         .damage = v.damage,
         .hand_placement = @Vector(2, f32){ 10, 10 },
         .forehand = blk: {
-            var tmp = Items.Weapons.Gun1;
-            tmp.texture = Textures.getTexture(textures, "Gun").slice[0];
+            var tmp = for (Items.Weapons) |weapon| {
+                if (std.mem.eql(u8, weapon.name, "Gun")) break weapon;
+            } else Items.Weapons[0];
+            tmp.texture = Textures.getTexture(textures, tmp.name).slice[0];
 
             break :blk tmp;
         },
@@ -148,7 +150,7 @@ fn loadRoom(
         const enemies = e.array.items;
         var enemy_buffer = try allocator.alloc(World.WorldItem, enemies.len);
         for (enemies, 0..) |raw_enemy, i| {
-            const enemy_data = EnemyTypes.mapClassToType(raw_enemy.object.get("type").?.string) catch return ConfigurationError.InvalidMapdataFile;
+            const enemy_data = CsvParser.mapClassToType(raw_enemy.object.get("type").?.string) catch return ConfigurationError.InvalidMapdataFile;
             enemy_buffer[i] = World.WorldItem{
                 .c = .{
                     .pos = @Vector(2, f32){
@@ -169,7 +171,7 @@ fn loadRoom(
                         .avalilable_directions = 1,
                         .frames = bll: {
                             const framebuffer = try allocator.alloc([]rl.Texture2D, 1);
-                            framebuffer[0] = Textures.getTextures(textures, enemy_data.animation_name).slice;
+                            framebuffer[0] = Textures.getTextures(textures, enemy_data.name).slice;
                             break :bll framebuffer;
                         },
                     },
