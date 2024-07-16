@@ -74,6 +74,7 @@ pub const WorldItemMetadata = union(enum) {
     },
     enemy: struct {
         animation: Textures.Animation,
+        score_bonus: u32,
         attack_type: enum(u8) {
             range = 1,
             melee = 2,
@@ -99,6 +100,7 @@ dim: @Vector(2, u16),
 map: rl.Texture2D,
 completed: bool = false,
 paused: bool = false,
+time: f32 = 0,
 
 pub fn init(dim: @Vector(2, u16), map: rl.Texture2D, allocator: std.mem.Allocator) !Self {
     return Self{
@@ -249,6 +251,8 @@ pub fn addItem(self: *Self, item: anytype) !void {
 }
 
 pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switch: *Level.Direction) bool {
+    self.time += rl.getFrameTime();
+
     var len = self.items.items.len;
     var i: u16 = 0;
 
@@ -263,6 +267,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
         }
 
         if (item.hp < 1) {
+            if (item.meta == .enemy) player.addScore(item.meta.enemy.score_bonus, self.time);
             _ = self.items.orderedRemove(i);
             len -= 1;
             continue :loop;

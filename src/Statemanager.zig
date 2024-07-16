@@ -85,7 +85,11 @@ pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player) !v
         .level => {
             self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures);
             self.gui[0].elements[0].hpm.source = &player.*.hp;
-            self.gui[0].elements[2].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
+            self.gui[0].elements[2].lbl.text_source = &player.*.current_score_str;
+            self.gui[0].elements[4].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
+
+            // To update the text
+            player.addScore(0, 0);
 
             // This is always the inventory, otherwise ded
             std.debug.assert(self.gui[1].elements[0] == .inventory_slot);

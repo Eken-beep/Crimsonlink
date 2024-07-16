@@ -14,6 +14,7 @@ const EnemyPackage = struct {
     damage: u16,
     hp: u8,
     attack_type: u8,
+    score_bonus: u32,
 };
 
 const WeaponPackage = struct {
@@ -39,15 +40,16 @@ fn makeEnemyData() std.fmt.ParseIntError![nr_enemy_types]EnemyPackage {
     _ = iterator.next();
     inline while (iterator.next()) |data| : (i += 1) {
         if (data.len == 0) continue; // Skip the last empty line some spreadsheets leave behind in csv files
-        const unprocessed = getOneDataline(6, data);
+        const unprocessed = getOneDataline(7, data);
         result[i] = EnemyPackage{
             .name = unprocessed[0],
             .width = @floatFromInt(try std.fmt.parseInt(u15, unprocessed[1], 10)),
             .height = @floatFromInt(try std.fmt.parseInt(u15, unprocessed[2], 10)),
             .damage = try std.fmt.parseInt(u16, unprocessed[3], 10),
-            .hp = try std.fmt.parseInt(u8, unprocessed[4], 10),
-            .attack_type = if (std.mem.eql(u8, "range", unprocessed[5])) 1 else if (std.mem.eql(u8, "melee", unprocessed[5])) 2 else {
-                @compileError("Incorrect enemydata file: " ++ unprocessed[5]);
+            .score_bonus = try std.fmt.parseInt(u32, unprocessed[4], 10),
+            .hp = try std.fmt.parseInt(u8, unprocessed[5], 10),
+            .attack_type = if (std.mem.eql(u8, "range", unprocessed[6])) 1 else if (std.mem.eql(u8, "melee", unprocessed[6])) 2 else {
+                @compileError("Incorrect enemydata file: " ++ data);
             },
         };
     }

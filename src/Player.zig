@@ -12,6 +12,10 @@ hp: u16,
 max_hp: u16,
 damage: u8,
 movementspeed: f32 = 300,
+score_multiplier: f32 = 1,
+current_score: u32 = 0,
+// Beautiful
+current_score_str: [17:0]u8 = [17:0]u8{ ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' },
 
 forehand: Items.Weapon,
 hand_placement: @Vector(2, f16),
@@ -71,6 +75,17 @@ pub const Item = struct {
         money,
     },
 };
+
+pub fn addScore(self: *Self, s: u32, time: f32) void {
+    // fall off based on time in room by this function
+    const score_falloff = 1 / @sqrt((time + 100) / 100);
+    self.current_score += @as(u32, @intFromFloat(
+        @as(f32, @floatFromInt(s)) * (self.score_multiplier * score_falloff),
+    ));
+    _ = std.fmt.bufPrint(&self.current_score_str, "Score: {d: <}", .{self.current_score}) catch {
+        self.current_score_str = [17:0]u8{ '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_', '_' };
+    };
+}
 
 pub fn mainAttack(self: *Self, world: *World, window: Window) !void {
     if (world.paused) return;

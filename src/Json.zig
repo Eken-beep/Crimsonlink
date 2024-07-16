@@ -186,6 +186,7 @@ fn loadRoom(
                         },
                     },
                     .attack_type = @enumFromInt(enemy_data.attack_type),
+                    .score_bonus = enemy_data.score_bonus,
                 } },
             };
         }

@@ -363,13 +363,20 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .column_width = 400,
                 .elements = undefined,
             };
-            result[0].elements = try allocator.alloc(GuiItem, 3);
+            result[0].elements = try allocator.alloc(GuiItem, 5);
             result[0].elements[0] = .{ .hpm = .{
                 .source = undefined,
                 .image = Textures.getTexture(textures, "heart").single,
             } };
             result[0].elements[1] = .{ .spc = 20 };
-            result[0].elements[2] = .{
+            result[0].elements[2] = .{ .lbl = .{
+                .fg_color = color.white,
+                .image = null,
+                .text = null,
+                .text_source = null,
+            } };
+            result[0].elements[3] = .{ .spc = 20 };
+            result[0].elements[4] = .{
                 .lbl = .{
                     .fg_color = color.white,
                     .image = Textures.getTexture(textures, "doge").single,
