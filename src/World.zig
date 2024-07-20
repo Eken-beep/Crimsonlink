@@ -63,6 +63,7 @@ pub const WorldItem = struct {
 
 pub const WorldItemMetadata = union(enum) {
     player: struct {
+        state: State = .idle,
         animation: Textures.Animation,
     },
     bullet: struct {
@@ -75,6 +76,9 @@ pub const WorldItemMetadata = union(enum) {
     enemy: struct {
         animation: Textures.Animation,
         score_bonus: u32,
+        self_timer: f32 = 0,
+        type: EnemyType,
+        state: State = .idle,
         attack_type: enum(u8) {
             range = 1,
             melee = 2,
@@ -91,7 +95,17 @@ pub const WorldItemMetadata = union(enum) {
     },
 };
 
-// The ai is retarded, fix
+pub const EnemyType = enum {
+    blooby,
+    slug,
+};
+
+pub const State = enum {
+    idle,
+    jumping,
+    shooting,
+    walking,
+};
 
 // Here the player is expected to be items[0] in all cases
 items: std.ArrayList(WorldItem),
@@ -275,8 +289,9 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
 
         switch (item.meta) {
             .player => |p| {
+                self.items.items[i].meta.player.state = if (item.c.vel[0] != 0 or item.c.vel[1] != 0) .walking else .idle;
                 // check if velocity isn't 0 to check for movement
-                self.items.items[i].meta.player.animation.step(rl.getFrameTime(), item.c.vel[0] != 0 or item.c.vel[1] != 0);
+                self.items.items[i].meta.player.animation.step(rl.getFrameTime());
 
                 // I give up just find the wierd movement and kill it
                 if (item.c.vel[0] > 0 and rl.isKeyUp(key.key_d)) self.items.items[i].c.vel[0] = 0;
@@ -285,7 +300,7 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                 if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
 
                 rl.drawTextureEx(
-                    p.animation.getFrame(item.c.pos, item.c.vel),
+                    self.items.items[i].meta.player.animation.getFrame(item.c.pos, item.c.vel, p.state),
                     makeRlVec2(self.items.items[i].c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -301,15 +316,9 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                 );
             },
             .enemy => |e| {
-                self.items.items[i].meta.enemy.animation.step(rl.getFrameTime(), true);
-                // This is how we do pathfinding for now
-                if (e.attack_type == .melee) {
-                    const angle = std.math.atan2(item.c.pos[1] - self.items.items[0].c.pos[1], item.c.pos[0] - self.items.items[0].c.pos[0]);
-                    self.items.items[i].c.vel = @Vector(2, f32){ -100 * @cos(angle), -100 * @sin(angle) };
-                }
-
+                self.items.items[i].c.vel = stepAi(&self.items, &self.items.items[i].meta, item.c, self.items.items[0].c);
                 rl.drawTextureEx(
-                    e.animation.getFrame(item.c.pos, item.c.vel),
+                    self.items.items[i].meta.enemy.animation.getFrame(item.c.pos, item.c.vel, e.state),
                     makeRlVec2(item.c.pos + item.c.texture_offset, window.origin, window.scale),
                     0,
                     window.scale * Window.PXSCALE,
@@ -426,4 +435,29 @@ fn drawHitbox(hb: @Vector(2, f32), pos: @Vector(2, f32)) void {
 
 fn makeRlVec2(v: @Vector(2, f32), offset: @Vector(2, f32), scale: f32) rl.Vector2 {
     return rl.Vector2.init(v[0] * scale + offset[0], v[1] * scale + offset[1]);
+}
+
+fn stepAi(
+    world: *std.ArrayList(WorldItem),
+    meta: *WorldItemMetadata,
+    collider: Collider.Collider,
+    player: Collider.Collider,
+) @Vector(2, f32) {
+    _ = world;
+    const enemy = &meta.*.enemy;
+    const dt = rl.getFrameTime();
+    enemy.*.animation.step(dt);
+    enemy.*.self_timer += dt;
+
+    const angle = std.math.atan2(collider.pos[1] - player.pos[1], collider.pos[0] - player.pos[0]);
+    switch (enemy.type) {
+        .slug => {
+            enemy.*.state = if (collider.vel[0] != 0 or collider.vel[1] != 0) .walking else .idle;
+            return @Vector(2, f32){ -100 * @cos(angle), -100 * @sin(angle) };
+        },
+        .blooby => {
+            enemy.*.state = .idle;
+            return @splat(0);
+        },
+    }
 }

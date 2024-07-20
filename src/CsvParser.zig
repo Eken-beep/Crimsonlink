@@ -1,4 +1,5 @@
 const std = @import("std");
+const World = @import("World.zig");
 
 const enemies_raw = @embedFile("datapresets/enemies.csv");
 const weapons_raw = @embedFile("datapresets/weapons.csv");

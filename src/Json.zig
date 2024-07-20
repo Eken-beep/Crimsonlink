@@ -23,6 +23,7 @@ const ConfigurationError = error{
     InvalidKeybindingConfig,
     InvalidPlayerdataFile,
     InvalidMapdataFile,
+    EnemyDoesNotExist,
 };
 
 pub fn loadPlayerData(
@@ -180,11 +181,12 @@ fn loadRoom(
                         .frametime = 0.2,
                         .avalilable_directions = 1,
                         .frames = bll: {
-                            const framebuffer = try allocator.alloc([]rl.Texture2D, 1);
-                            framebuffer[0] = Textures.getTextures(textures, enemy_data.name).slice;
+                            const framebuffer = try allocator.alloc(Textures.AnimationData, 1);
+                            framebuffer[0] = Textures.AnimationData.init(enemy_data.name, textures);
                             break :bll framebuffer;
                         },
                     },
+                    .type = try mapNameToEnemytype(enemy_data.name),
                     .attack_type = @enumFromInt(enemy_data.attack_type),
                     .score_bonus = enemy_data.score_bonus,
                 } },
@@ -217,4 +219,10 @@ fn mapRoomtypeToEnum(roomtype: []const u8) ConfigurationError!Level.RoomType {
     if (std.mem.eql(u8, "loot", roomtype)) return Level.RoomType.Loot;
     if (std.mem.eql(u8, "boss", roomtype)) return Level.RoomType.Boss;
     return ConfigurationError.InvalidMapdataFile;
+}
+
+fn mapNameToEnemytype(et: []const u8) ConfigurationError!World.EnemyType {
+    if (std.mem.eql(u8, "blooby", et)) return World.EnemyType.blooby;
+    if (std.mem.eql(u8, "slug", et)) return World.EnemyType.slug;
+    return ConfigurationError.EnemyDoesNotExist;
 }

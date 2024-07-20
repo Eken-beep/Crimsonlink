@@ -121,19 +121,19 @@ pub fn loadRoom(self: *Self, textures: Textures.TextureMap, player: *Player, roo
         .y = 200,
         .animation = Textures.Animation{
             .nr_frames = 5,
-            .frametime = 0.3,
+            .frametime = (0.1),
             .avalilable_directions = 8,
             .frames = blk: {
                 // TODO clean this memory after unloading room, leaks until everything is unloaded in the level_allocator
-                const framebuffer = try self.level_allocator.alloc([]rl.Texture2D, 8);
-                framebuffer[0] = Textures.getTextures(textures, "player_1").slice;
-                framebuffer[1] = Textures.getTextures(textures, "player_2").slice;
-                framebuffer[2] = Textures.getTextures(textures, "player_3").slice;
-                framebuffer[3] = Textures.getTextures(textures, "player_4").slice;
-                framebuffer[4] = Textures.getTextures(textures, "player_5").slice;
-                framebuffer[5] = Textures.getTextures(textures, "player_6").slice;
-                framebuffer[6] = Textures.getTextures(textures, "player_7").slice;
-                framebuffer[7] = Textures.getTextures(textures, "player_8").slice;
+                const framebuffer = try self.level_allocator.alloc(Textures.AnimationData, 8);
+                framebuffer[0] = Textures.AnimationData.init("player_0", textures);
+                framebuffer[1] = Textures.AnimationData.init("player_1", textures);
+                framebuffer[2] = Textures.AnimationData.init("player_2", textures);
+                framebuffer[3] = Textures.AnimationData.init("player_3", textures);
+                framebuffer[4] = Textures.AnimationData.init("player_4", textures);
+                framebuffer[5] = Textures.AnimationData.init("player_5", textures);
+                framebuffer[6] = Textures.AnimationData.init("player_6", textures);
+                framebuffer[7] = Textures.AnimationData.init("player_7", textures);
                 break :blk framebuffer;
             },
         },

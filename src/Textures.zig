@@ -1,10 +1,12 @@
 const std = @import("std");
 const rl = @import("raylib");
+const World = @import("World.zig");
 const fs = std.fs;
 
 const DRAW_HITBOXES = true;
 
 pub const TextureMap = std.StringArrayHashMap(TextureStore);
+const pi = std.math.pi;
 
 pub const Animation = struct {
     const Anim = @This();
@@ -14,47 +16,55 @@ pub const Animation = struct {
 
     frametime: f32,
     timer: f32 = 0,
-    frames: [][]rl.Texture2D,
+    frames: []AnimationData,
     direction: u8 = 0,
+    direction_rad: f32 = 0,
     avalilable_directions: u8 = 1,
+    previous_velocity: @Vector(2, f32) = @splat(0),
 
-    pub fn step(anim: *Anim, dt: f32, moving: bool) void {
-        if (!moving) anim.current_frame = 0 else {
-            anim.timer += dt;
-            if (anim.timer > anim.frametime) {
-                anim.timer = 0;
-                anim.current_frame += 1;
-                if (anim.current_frame == anim.nr_frames) anim.current_frame = 0;
-            }
+    pub fn step(anim: *Anim, dt: f32) void {
+        anim.timer += dt;
+        if (anim.timer > anim.frametime) {
+            anim.timer = 0;
+            anim.current_frame += 1;
+
+            if (anim.current_frame == anim.nr_frames) anim.current_frame = 0;
         }
     }
 
-    pub fn getFrame(anim: *const Anim, pos: @Vector(2, f32), v: @Vector(2, f32)) rl.Texture2D {
+    pub fn getFrame(
+        anim: *Anim,
+        pos: @Vector(2, f32),
+        v: @Vector(2, f32),
+        state: World.State,
+    ) rl.Texture2D {
         const angle: f32 = std.math.atan2(v[1], v[0]);
         var direction: ?usize = null;
 
-        if (v[0] != 0 or v[1] != 0) {
+        if (state == .walking and !@reduce(.Or, v != anim.previous_velocity)) {
             // Calculate the value here and approximate it to one of the 8 possible directions
-            const pi = std.math.pi;
             direction = switch (anim.avalilable_directions) {
                 8 => blk: {
                     const directions = [_]f32{
-                        -pi / 2.0,
-                        -pi / 4.0,
-                        0,
-                        pi / 4.0,
                         pi / 2.0,
-                        3 * pi / 4.0,
-                        pi,
+                        pi / 4.0,
+                        0,
+                        -pi / 4.0,
+                        -pi / 2.0,
                         -3 * pi / 4.0,
+                        pi,
+                        3 * pi / 4.0,
                     };
                     var closest: f32 = directions[0];
                     for (directions) |d| {
                         if (@abs(d - angle) < @abs(closest - angle)) closest = d;
                     }
+                    anim.direction_rad = closest;
                     for (directions, 0..) |d, i| {
-                        if (d == closest) break :blk i;
-                    } else break :blk 10;
+                        if (d == closest) {
+                            break :blk i;
+                        }
+                    } else break :blk null;
                 },
                 4 => blk: {
                     const directions = [_]f32{
@@ -67,9 +77,10 @@ pub const Animation = struct {
                     for (directions) |d| {
                         if (@abs(d - angle) < @abs(closest - angle)) closest = d;
                     }
+                    anim.direction_rad = closest;
                     for (directions, 0..) |d, i| {
                         if (d == closest) break :blk i;
-                    } else break :blk 10;
+                    } else break :blk null;
                 },
                 2 => blk: {
                     const directions = [_]f32{
@@ -80,14 +91,16 @@ pub const Animation = struct {
                     for (directions) |d| {
                         if (@abs(d - angle) < @abs(closest - angle)) closest = d;
                     }
+                    anim.direction_rad = closest;
                     for (directions, 0..) |d, i| {
                         if (d == closest) break :blk i;
-                    } else break :blk 10;
+                    } else break :blk null;
                 },
                 1 => 0,
                 else => unreachable,
             };
         }
+        if (direction) |d| anim.direction = @intCast(d);
 
         if (DRAW_HITBOXES) {
             const px: i32 = @intFromFloat(pos[0]);
@@ -97,7 +110,12 @@ pub const Animation = struct {
             rl.drawLine(px, py, x + px, y + py, rl.Color.sky_blue);
         }
 
-        return anim.frames[direction orelse 0][anim.current_frame];
+        anim.previous_velocity = v;
+        const store = anim.frames[direction orelse anim.direction].get(state);
+        return switch (store) {
+            .single => store.single,
+            .slice => store.slice[anim.current_frame],
+        };
     }
 };
 
@@ -117,7 +135,58 @@ const DataDir = union(enum) {
     Custom: []const u8,
 };
 
-pub const TextureStore = union { single: rl.Texture2D, slice: []rl.Texture2D };
+pub const TextureStore = union(enum) { single: rl.Texture2D, slice: []rl.Texture2D };
+
+pub const AnimationData = struct {
+    const Self = @This();
+
+    idle: TextureStore,
+    jumping: TextureStore,
+    shooting: TextureStore,
+    walking: TextureStore,
+
+    // This should be in comptime but the fetching of room data prohibits that currently
+    pub fn init(name: []const u8, textures: TextureMap) Self {
+        std.debug.assert(name.len <= 10);
+        // This wierdness is to avoid an allocator when getting the textures,
+        var name_buf: [19]u8 = undefined;
+        std.mem.copyForwards(u8, &name_buf, name);
+        const name_buf_end = name_buf[name.len..];
+
+        return Self{
+            .idle = blk: {
+                std.mem.copyForwards(u8, name_buf_end, "_idle");
+                break :blk (textures.get(name_buf[0 .. name.len + 5]) orelse textures.get("fallback_many").?);
+            },
+            .jumping = blk: {
+                std.mem.copyForwards(u8, name_buf_end, "_jumping");
+                break :blk (textures.get(name_buf[0 .. name.len + 8]) orelse textures.get("fallback_many").?);
+            },
+            .shooting = blk: {
+                std.mem.copyForwards(u8, name_buf_end, "_shooting");
+                break :blk (textures.get(name_buf[0 .. name.len + 9]) orelse textures.get("fallback_many").?);
+            },
+            .walking = blk: {
+                std.mem.copyForwards(u8, name_buf_end, "_walking");
+                break :blk (textures.get(name_buf[0 .. name.len + 8]) orelse textures.get("fallback_many").?);
+            },
+        };
+    }
+
+    pub fn get(self: *Self, state: World.State) TextureStore {
+        return switch (state) {
+            .idle => self.idle,
+            .jumping => self.jumping,
+            .shooting => self.shooting,
+            .walking => self.walking,
+        };
+    }
+};
+
+// ----
+// Textures should be named like following:
+// name_directionid_state_n
+// ----
 
 pub fn loadTextures(allocator: std.mem.Allocator) !std.StringArrayHashMap(TextureStore) {
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -162,7 +231,7 @@ pub fn loadTextures(allocator: std.mem.Allocator) !std.StringArrayHashMap(Textur
         for (path_arraylist.items) |f| {
             const path = fs.path.joinZ(arena_allocator, &[_][]const u8{ "assets", f }) catch continue;
             const file_basename = getFilepathStem(f) catch continue;
-            const file_basename_permanent = try allocator.alloc(u8, file_basename.len);
+            const file_basename_permanent = allocator.alloc(u8, file_basename.len) catch continue;
             std.mem.copyForwards(u8, file_basename_permanent, file_basename);
             std.debug.print("{s}\n", .{file_basename});
 
