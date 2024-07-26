@@ -1,5 +1,6 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
+
 const World = @import("World.zig");
 const Items = @import("Items.zig");
 const Window = @import("Window.zig");
@@ -9,6 +10,10 @@ pub const Collider = struct {
     vel: @Vector(2, f32),
     hitbox: @Vector(2, f16),
     centerpoint: @Vector(2, f16),
+    // These should mostly just be the same as the hitbox
+    // Except when the image is too big
+    render_width: u16,
+    render_height: u16,
     flags: Flags,
     texture_offset: @Vector(2, f16),
     effect: @Vector(2, f32) = @splat(0),
@@ -50,18 +55,18 @@ const Flags = packed struct {
 
 pub fn applyVelocity(
     collider: *Collider,
+    dt: f32,
     object_type: World.WorldItemMetadata,
     world_size: @Vector(2, u16),
     world_items: []World.WorldItem,
 ) Resolution {
     var resolution_result: Resolution = .none;
     var velocity: @Vector(2, f32) = collider.vel;
-    // The fact that whether or not the enemies are pushed aside are checked for collision will surely lead to some intreseting bugs I can't be bothered to fix now
-    const goal = collider.pos + collider.vel * @as(@Vector(2, f32), @splat(rl.getFrameTime()));
+    const goal = collider.pos + collider.vel * @as(@Vector(2, f32), @splat(dt));
     const world_w: f32 = @floatFromInt(world_size[0]);
     const world_h: f32 = @floatFromInt(world_size[1]);
-    velocity[0] *= rl.getFrameTime();
-    velocity[1] *= rl.getFrameTime();
+    velocity[0] *= dt;
+    velocity[1] *= dt;
 
     for (world_items, 0..) |item, i| {
         // So that we don't compare with the same item
@@ -182,14 +187,14 @@ fn resolve(
     }
     // Just check one way between bullet and kinetic
     if (b_meta == .bullet and a.flags.kinetic) return .none;
-    if (a.flags.kinetic and b.flags.kinetic) {
+    if (a.flags.kinetic and b.flags.kinetic and (a_meta != .enemy or b_meta != .player)) {
         if (a_meta == .bullet and b_meta == .bullet) return .none;
         return .spread;
     }
     if (a.flags.kinetic and !b.flags.kinetic) return .{ .stop = getCollisionDirection(a, b) };
     // As long as it isn't an enemy and player colliding
     if (a.flags.kinetic == b.flags.kinetic and a.flags.transparent == b.flags.transparent) {
-        if (a_meta == .enemy and b_meta == .player) return Resolution{ .damage = b_index } else return .none;
+        if (a_meta == .enemy and b_meta == .player) return Resolution{ .damage = b_index };
     }
     return .none;
 }

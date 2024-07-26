@@ -1,5 +1,5 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
 
 const Window = @import("Window.zig");
 const Input = @import("Input.zig");
@@ -7,8 +7,6 @@ const Textures = @import("Textures.zig");
 const Player = @import("Player.zig");
 const Collider = @import("Collider.zig");
 const Level = @import("Level.zig");
-
-const key = rl.KeyboardKey;
 
 const Self = @This();
 
@@ -77,7 +75,10 @@ pub const WorldItemMetadata = union(enum) {
         animation: Textures.Animation,
         score_bonus: u32,
         self_timer: f32 = 0,
+        melee_timeout: f32 = 0,
+        attack_time: f32 = 1,
         type: EnemyType,
+        damage: u16,
         state: State = .idle,
         attack_type: enum(u8) {
             range = 1,
@@ -88,16 +89,30 @@ pub const WorldItemMetadata = union(enum) {
         dt: f32,
         payload: Player.Item,
     },
-    static: rl.Texture2D,
+    static: SDL.Texture,
     door: struct {
         direction: Level.Direction,
-        texture: rl.Texture2D,
+        texture: SDL.Texture,
     },
 };
 
 pub const EnemyType = enum {
     blooby,
     slug,
+
+    pub fn drop(self: *@This(), c: Collider.Collider, textures: Textures.TextureMap, world: *Self) !void {
+        switch (self.*) {
+            .slug => try world.addItem(.{
+                .type = WorldPacket.item,
+                .x = c.pos[0],
+                .y = c.pos[1],
+                .itemtype = .slime,
+                .ammount = 1,
+                .sprite = (textures.get("slime") orelse textures.get("fallback_single").?).single,
+            }),
+            else => {},
+        }
+    }
 };
 
 pub const State = enum {
@@ -111,12 +126,12 @@ pub const State = enum {
 items: std.ArrayList(WorldItem),
 allocator: std.mem.Allocator,
 dim: @Vector(2, u16),
-map: rl.Texture2D,
+map: SDL.Texture,
 completed: bool = false,
 paused: bool = false,
 time: f32 = 0,
 
-pub fn init(dim: @Vector(2, u16), map: rl.Texture2D, allocator: std.mem.Allocator) !Self {
+pub fn init(dim: @Vector(2, u16), map: SDL.Texture, allocator: std.mem.Allocator) !Self {
     return Self{
         .items = std.ArrayList(WorldItem).init(allocator),
         .allocator = allocator,
@@ -129,6 +144,10 @@ pub fn init(dim: @Vector(2, u16), map: rl.Texture2D, allocator: std.mem.Allocato
 pub fn addItem(self: *Self, item: anytype) !void {
     switch (item.type) {
         .player => {
+            const img_info = try switch (item.animation.frames[0].idle) {
+                .slice => |a| a[0],
+                .single => |a| a,
+            }.query();
             try self.items.append(WorldItem{
                 .c = .{
                     .pos = @Vector(2, f32){ item.x, item.y },
@@ -139,6 +158,8 @@ pub fn addItem(self: *Self, item: anytype) !void {
                         .kinetic = true,
                         .transparent = false,
                     },
+                    .render_width = img_info.width * 4,
+                    .render_height = img_info.height * 4,
                     .texture_offset = @Vector(2, f16){ -PLAYERSPRITEWIDTH, 0 },
                     .weapon_mount = @Vector(2, f16){ 36, 104 },
                 },
@@ -149,12 +170,18 @@ pub fn addItem(self: *Self, item: anytype) !void {
             });
         },
         .enemy => {
+            const img_info = try switch (item.animation.frames[0].idle) {
+                .slice => |a| a[0],
+                .single => |a| a,
+            }.query();
             try self.items.append(WorldItem{
                 .c = .{
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @splat(0),
                     .hitbox = @splat(50),
                     .centerpoint = @splat(25),
+                    .render_width = img_info.width * 4,
+                    .render_height = img_info.height * 4,
                     .flags = .{
                         .kinetic = true,
                         .transparent = false,
@@ -175,11 +202,13 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .vel = @Vector(2, f32){ item.vx, item.vy },
                     .hitbox = @splat(5),
                     .centerpoint = @splat(25),
+                    .render_width = 10,
+                    .render_height = 10,
                     .flags = .{
                         .kinetic = true,
                         .transparent = true,
                     },
-                    .texture_offset = @Vector(2, f16){ 5, 5 },
+                    .texture_offset = @Vector(2, f16){ -2.5, -2.5 },
                 },
                 .hp = item.damage,
                 .meta = WorldItemMetadata{ .bullet = .{
@@ -193,8 +222,10 @@ pub fn addItem(self: *Self, item: anytype) !void {
                 .c = .{
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @splat(0),
-                    .hitbox = @splat(10),
+                    .hitbox = @splat(80),
                     .centerpoint = @splat(5),
+                    .render_width = 80,
+                    .render_height = 80,
                     .flags = .{
                         .kinetic = false,
                         .transparent = true,
@@ -215,10 +246,12 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @splat(0),
                     .hitbox = @Vector(2, f16){
-                        @as(f16, @floatFromInt(item.sprite.*.width)),
-                        @as(f16, @floatFromInt(item.sprite.*.height)),
+                        @as(f16, @floatFromInt(item.sprite.query().width)),
+                        @as(f16, @floatFromInt(item.sprite.query().height)),
                     },
                     .centerpoint = @splat(0),
+                    .render_width = item.sprite.query().width,
+                    .render_height = item.sprite.query().heigh,
                     .flags = .{
                         .kinetic = false,
                         .transparent = false,
@@ -246,6 +279,14 @@ pub fn addItem(self: *Self, item: anytype) !void {
                         .North, .South => @Vector(2, f16){ 100, 5 },
                         else => @Vector(2, f16){ 5, 100 },
                     },
+                    .render_width = switch (item.side) {
+                        .North, .South => 100,
+                        else => 100,
+                    },
+                    .render_height = switch (item.side) {
+                        .North, .South => 5,
+                        else => 100,
+                    },
                     .centerpoint = @splat(0),
                     .flags = .{
                         .kinetic = false,
@@ -264,14 +305,24 @@ pub fn addItem(self: *Self, item: anytype) !void {
     }
 }
 
-pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switch: *Level.Direction) bool {
-    self.time += rl.getFrameTime();
+pub fn iterate(
+    self: *Self,
+    r: *SDL.Renderer,
+    window: *Window,
+    player: *Player,
+    world_should_switch: *Level.Direction,
+    textures: Textures.TextureMap,
+    dt: f32,
+    keybinds: std.AutoHashMap(i10, Input.InputAction),
+) !bool {
+    self.time += dt;
 
     var len = self.items.items.len;
     var i: u16 = 0;
 
     // local copy to keep track of if we've won
     var found_enemy: bool = false;
+    var found_player: bool = false;
     defer self.completed = !found_enemy;
 
     loop: while (len > i) : (i += 1) {
@@ -281,7 +332,10 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
         }
 
         if (item.hp < 1) {
-            if (item.meta == .enemy) player.addScore(item.meta.enemy.score_bonus, self.time);
+            if (item.meta == .enemy) {
+                player.addScore(item.meta.enemy.score_bonus, self.time);
+                try self.items.items[i].meta.enemy.type.drop(item.c, textures, self);
+            }
             _ = self.items.orderedRemove(i);
             len -= 1;
             continue :loop;
@@ -289,102 +343,113 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
 
         switch (item.meta) {
             .player => |p| {
+                found_player = true;
                 self.items.items[i].meta.player.state = if (item.c.vel[0] != 0 or item.c.vel[1] != 0) .walking else .idle;
                 // check if velocity isn't 0 to check for movement
-                self.items.items[i].meta.player.animation.step(rl.getFrameTime());
+                self.items.items[i].meta.player.animation.step(dt);
 
                 // I give up just find the wierd movement and kill it
-                if (item.c.vel[0] > 0 and rl.isKeyUp(key.key_d)) self.items.items[i].c.vel[0] = 0;
-                if (item.c.vel[1] > 0 and rl.isKeyUp(key.key_s)) self.items.items[i].c.vel[1] = 0;
-                if (item.c.vel[0] < 0 and rl.isKeyUp(key.key_a)) self.items.items[i].c.vel[0] = 0;
-                if (item.c.vel[1] < 0 and rl.isKeyUp(key.key_w)) self.items.items[i].c.vel[1] = 0;
+                const ks = SDL.getKeyboardState();
 
-                rl.drawTextureEx(
-                    self.items.items[i].meta.player.animation.getFrame(item.c.pos, item.c.vel, p.state),
-                    makeRlVec2(self.items.items[i].c.pos + item.c.texture_offset, window.origin, window.scale),
-                    0,
-                    window.scale * Window.PXSCALE,
-                    rl.Color.white,
+                if (item.c.vel[0] > 0 and !ks.isPressedInt(getKeyOfAction(.moveright, keybinds))) self.items.items[i].c.vel[0] = 0;
+                if (item.c.vel[1] > 0 and !ks.isPressedInt(getKeyOfAction(.movedown, keybinds))) self.items.items[i].c.vel[1] = 0;
+                if (item.c.vel[0] < 0 and !ks.isPressedInt(getKeyOfAction(.moveleft, keybinds))) self.items.items[i].c.vel[0] = 0;
+                if (item.c.vel[1] < 0 and !ks.isPressedInt(getKeyOfAction(.moveup, keybinds))) self.items.items[i].c.vel[1] = 0;
+
+                try r.copy(
+                    self.items.items[i].meta.player.animation.getFrame(item.c.vel, p.state),
+                    .{
+                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                        .width = item.c.render_width,
+                        .height = item.c.render_height,
+                    },
+                    null,
                 );
             },
             .bullet => {
-                rl.drawCircle(
-                    @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
-                    @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
-                    5 * window.scale,
-                    rl.Color.pink,
-                );
+                try r.setColor(SDL.Color.magenta);
+                try r.fillRect(.{
+                    .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                    .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                    .width = 10,
+                    .height = 10,
+                });
             },
             .enemy => |e| {
-                self.items.items[i].c.vel = stepAi(&self.items, &self.items.items[i].meta, item.c, self.items.items[0].c);
-                rl.drawTextureEx(
-                    self.items.items[i].meta.enemy.animation.getFrame(item.c.pos, item.c.vel, e.state),
-                    makeRlVec2(item.c.pos + item.c.texture_offset, window.origin, window.scale),
-                    0,
-                    window.scale * Window.PXSCALE,
-                    rl.Color.white,
+                self.items.items[i].c.vel = try stepAi(self, &self.items.items[i].meta, item.c, self.items.items[0].c, dt);
+                try r.copy(
+                    self.items.items[i].meta.enemy.animation.getFrame(item.c.vel, e.state),
+                    .{
+                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                        .width = item.c.render_width,
+                        .height = item.c.render_height,
+                    },
+                    null,
                 );
             },
             .item => |x| {
-                self.items.items[i].meta.item.dt += rl.getFrameTime();
+                self.items.items[i].meta.item.dt += dt;
                 // Bouncy item
                 const vpos = item.c.pos + @Vector(2, f32){ 0, 10 * @sin(x.dt) };
-                rl.drawTextureEx(
+                try r.copy(
                     x.payload.image,
-                    makeRlVec2(vpos + item.c.texture_offset, window.origin, window.scale),
-                    0,
-                    window.scale * Window.PXSCALE,
-                    rl.Color.white,
+                    .{
+                        .x = @as(i32, @intFromFloat(window.scale * (vpos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                        .y = @as(i32, @intFromFloat(window.scale * (vpos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                        .width = item.c.render_width,
+                        .height = item.c.render_height,
+                    },
+                    null,
                 );
             },
             .static => |sprite| {
-                if (DRAW_HITBOXES) drawHitbox(
-                    item.c.hitbox * @as(@Vector(2, f32), @splat(window.scale)),
-                    (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
-                );
-                rl.drawTextureEx(
+                try r.copy(
                     sprite,
-                    makeRlVec2(item.c.pos + item.c.texture_offset, window.origin, window.scale),
-                    0,
-                    window.scale * Window.PXSCALE,
-                    rl.Color.white,
+                    .{
+                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                        .width = item.c.render_width,
+                        .height = item.c.render_height,
+                    },
+                    null,
                 );
             },
             .door => |door| {
-                if (DRAW_HITBOXES) drawHitbox(
-                    item.c.hitbox * @as(@Vector(2, f32), @splat(window.scale)),
-                    (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
-                );
-                rl.drawTextureEx(
+                try r.copy(
                     door.texture,
-                    makeRlVec2(item.c.pos, window.origin, window.scale),
-                    0,
-                    window.scale * Window.PXSCALE,
-                    rl.Color.white,
+                    .{
+                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                        .width = item.c.render_width,
+                        .height = item.c.render_height,
+                    },
+                    null,
                 );
             },
         }
 
         if (item.c.weapon_mount) |weapon_mountpoint| {
             if (item.meta == .player) {
-                rl.drawTextureEx(
+                try r.copy(
                     player.forehand.texture,
-                    makeRlVec2(item.c.pos + weapon_mountpoint - player.forehand.handle, window.origin, window.scale),
-                    0,
-                    window.scale * Window.PXSCALE,
-                    rl.Color.white,
+                    .{
+                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + weapon_mountpoint[0]) + window.origin[0])),
+                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + weapon_mountpoint[1]) + window.origin[1])),
+                        .width = item.c.render_width,
+                        .height = item.c.render_height,
+                    },
+                    null,
                 );
             }
         }
 
         // Then lastly we apply the velocity of the item
         if (item.c.flags.kinetic) {
-            if (DRAW_HITBOXES) drawHitbox(
-                item.c.hitbox * @as(@Vector(2, f32), @splat(window.scale)),
-                (item.c.pos * @as(@Vector(2, f32), @splat(window.scale))) + window.origin,
-            );
             const result = Collider.applyVelocity(
                 &self.items.items[i].c,
+                dt,
                 item.meta,
                 self.dim,
                 self.items.items,
@@ -396,11 +461,19 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
                 },
                 .damage => |to| {
                     if (item.meta == .bullet) {
-                        self.items.items[to].hp -|= item.meta.bullet.damage;
+                        // The players HP is not stored in the world
+                        if (self.items.items[to].meta == .player) {
+                            player.hp -|= item.meta.bullet.damage;
+                        } else if (self.items.items[to].meta == .enemy) {
+                            self.items.items[to].hp -|= item.meta.bullet.damage;
+                        }
                         _ = self.items.orderedRemove(i);
                         len -= 1;
                     } else if (item.meta == .enemy) {
-                        // enemy stuff
+                        if (self.items.items[to].meta == .player and item.meta.enemy.melee_timeout > item.meta.enemy.attack_time) {
+                            player.hp -|= item.meta.enemy.damage;
+                            self.items.items[i].meta.enemy.melee_timeout = 0;
+                        }
                     }
                 },
                 .pickup => |dropped_item| {
@@ -421,43 +494,104 @@ pub fn iterate(self: *Self, window: *Window, player: *Player, world_should_switc
             }
         }
     }
+    // This is how we die for now
+    std.debug.assert(found_player);
     // For setting the room data for later
     return !found_enemy;
 }
 
-fn drawHitbox(hb: @Vector(2, f32), pos: @Vector(2, f32)) void {
-    const x: i32 = @intFromFloat(pos[0]);
-    const y: i32 = @intFromFloat(pos[1]);
-    const w: i32 = @intFromFloat(hb[0]);
-    const h: i32 = @intFromFloat(hb[1]);
-    rl.drawRectangleLines(x, y, w, h, rl.Color.pink);
-}
-
-fn makeRlVec2(v: @Vector(2, f32), offset: @Vector(2, f32), scale: f32) rl.Vector2 {
-    return rl.Vector2.init(v[0] * scale + offset[0], v[1] * scale + offset[1]);
+fn getKeyOfAction(a: Input.InputAction, hm: std.AutoHashMap(i10, Input.InputAction)) i10 {
+    var iter = hm.iterator();
+    while (iter.next()) |e| {
+        if (e.value_ptr.* == a) return e.key_ptr.*;
+    }
+    return 0;
 }
 
 fn stepAi(
-    world: *std.ArrayList(WorldItem),
+    world: *Self,
     meta: *WorldItemMetadata,
     collider: Collider.Collider,
     player: Collider.Collider,
-) @Vector(2, f32) {
-    _ = world;
+    dt: f32,
+) !@Vector(2, f32) {
     const enemy = &meta.*.enemy;
-    const dt = rl.getFrameTime();
     enemy.*.animation.step(dt);
     enemy.*.self_timer += dt;
+    enemy.*.melee_timeout += dt;
 
     const angle = std.math.atan2(collider.pos[1] - player.pos[1], collider.pos[0] - player.pos[0]);
+    var vel: @Vector(2, f32) = @splat(0);
     switch (enemy.type) {
         .slug => {
             enemy.*.state = if (collider.vel[0] != 0 or collider.vel[1] != 0) .walking else .idle;
             return @Vector(2, f32){ -100 * @cos(angle), -100 * @sin(angle) };
         },
         .blooby => {
-            enemy.*.state = .idle;
-            return @splat(0);
+            switch (enemy.state) {
+                .idle => {
+                    if (enemy.*.self_timer > 3) {
+                        enemy.*.state = .jumping;
+                        enemy.*.self_timer = 0;
+                    }
+                },
+                .jumping => {
+                    const t = meta.enemy.self_timer;
+                    vel = .{
+                        @cos(angle) * -100 * @exp(t + 1),
+                        @sin(angle) * -100 * @exp(t + 1),
+                    };
+
+                    if (enemy.*.self_timer > 1) {
+                        enemy.state = .shooting;
+                        enemy.*.self_timer = 0;
+                    }
+                },
+                .shooting => {
+                    if (enemy.*.self_timer > 0.5) {
+                        enemy.*.state = .idle;
+                        enemy.*.self_timer = 0;
+                        try world.addItem(.{
+                            .type = WorldPacket.bullet,
+                            .x = collider.pos[0] + collider.centerpoint[0],
+                            .y = collider.pos[1] + collider.centerpoint[1],
+                            .vx = 200,
+                            .vy = 0,
+                            .owner = .enemy,
+                            .damage = enemy.damage,
+                        });
+                        try world.addItem(.{
+                            .type = WorldPacket.bullet,
+                            .x = collider.pos[0] + collider.centerpoint[0],
+                            .y = collider.pos[1] + collider.centerpoint[1],
+                            .vx = 0,
+                            .vy = 200,
+                            .owner = .enemy,
+                            .damage = enemy.damage,
+                        });
+                        try world.addItem(.{
+                            .type = WorldPacket.bullet,
+                            .x = collider.pos[0] + collider.centerpoint[0],
+                            .y = collider.pos[1] + collider.centerpoint[1],
+                            .vx = -200,
+                            .vy = 0,
+                            .owner = .enemy,
+                            .damage = enemy.damage,
+                        });
+                        try world.addItem(.{
+                            .type = WorldPacket.bullet,
+                            .x = collider.pos[0] + collider.centerpoint[0],
+                            .y = collider.pos[1] + collider.centerpoint[1],
+                            .vx = 0,
+                            .vy = -200,
+                            .owner = .enemy,
+                            .damage = enemy.damage,
+                        });
+                    }
+                },
+                else => {},
+            }
+            return vel;
         },
     }
 }

@@ -1,5 +1,6 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
+
 const Player = @import("Player.zig");
 const World = @import("World.zig");
 const Statemanager = @import("Statemanager.zig");
@@ -24,6 +25,8 @@ const ConfigurationError = error{
     InvalidPlayerdataFile,
     InvalidMapdataFile,
     EnemyDoesNotExist,
+
+    SdlError,
 };
 
 pub fn loadPlayerData(
@@ -94,7 +97,12 @@ const IntermediaryEnemyRepresentation = struct {
     y: f64,
 };
 
-pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: std.StringArrayHashMap(Textures.TextureStore)) ConfigurationError!Level.Level {
+pub fn getLevel(
+    r: *SDL.Renderer,
+    level_id: u8,
+    allocator: std.mem.Allocator,
+    textures: Textures.TextureMap,
+) ConfigurationError!Level.Level {
     const leveldata_path: []const u8 = try std.fmt.allocPrint(allocator, "data/levels/{d}/level.json", .{level_id});
     const raw_leveldata = std.fs.cwd().readFileAlloc(
         allocator,
@@ -112,7 +120,7 @@ pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: std.String
     const rooms = try allocator.alloc(Level.Room, nr_rooms);
     for (rooms, 0..) |_, i| {
         const id: u8 = @intCast(i);
-        rooms[i] = try loadRoom(level_id, id, allocator, textures);
+        rooms[i] = try loadRoom(r, level_id, id, allocator, textures);
     }
     return Level.Level{
         .id = level_id,
@@ -121,10 +129,11 @@ pub fn getLevel(level_id: u8, allocator: std.mem.Allocator, textures: std.String
 }
 
 fn loadRoom(
+    r: *SDL.Renderer,
     level_id: u8,
     room_id: u8,
     allocator: std.mem.Allocator,
-    textures: std.StringArrayHashMap(Textures.TextureStore),
+    textures: Textures.TextureMap,
 ) ConfigurationError!Level.Room {
     // TODO
     // change this to load the file from some useful place OR embed the data files that shouldn't change
@@ -148,7 +157,8 @@ fn loadRoom(
     const height: u16 = @intCast(parsed.value.object.get("height").?.integer);
     ret.dimensions = @Vector(2, u16){ width, height };
     // This is technically a memory leak, I think
-    ret.texture = rl.loadTextureFromImage(rl.loadImage(room_texture_filename));
+    // We need to destroy this image after the level is unloaded to fix this
+    ret.texture = try SDL.image.loadTexture(r.*, room_texture_filename);
 
     ret.room_type = try mapRoomtypeToEnum(parsed.value.object.get("roomtype").?.string);
 
@@ -165,8 +175,10 @@ fn loadRoom(
                         @floatFromInt(raw_enemy.object.get("x").?.integer),
                         @floatFromInt(raw_enemy.object.get("y").?.integer),
                     },
-                    .centerpoint = @Vector(2, f16){ enemy_data.width / 2, enemy_data.height / 2 },
-                    .hitbox = @Vector(2, f16){ enemy_data.width, enemy_data.height },
+                    .centerpoint = @Vector(2, f16){ enemy_data.width * 2, enemy_data.height * 2 },
+                    .hitbox = @Vector(2, f16){ enemy_data.width * 4, enemy_data.height * 4 },
+                    .render_width = @as(u16, @intFromFloat(enemy_data.width)) * 4,
+                    .render_height = @as(u16, @intFromFloat(enemy_data.height)) * 4,
                     .vel = @splat(0),
                     .flags = .{
                         .kinetic = true,
@@ -188,6 +200,7 @@ fn loadRoom(
                     },
                     .type = try mapNameToEnemytype(enemy_data.name),
                     .attack_type = @enumFromInt(enemy_data.attack_type),
+                    .damage = enemy_data.damage,
                     .score_bonus = enemy_data.score_bonus,
                 } },
             };

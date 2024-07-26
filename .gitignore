@@ -4,3 +4,6 @@ zig-out
 .zig-cache
 .zig-out
 .vscode
+xdg_cache
+.cache
+result

@@ -1,5 +1,6 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
+
 const Collider = @import("Collider.zig");
 const World = @import("World.zig");
 const CsvParser = @import("CsvParser.zig");
@@ -8,7 +9,7 @@ pub const Weapon = struct {
     // Where on the gun is the handle? Anchored to the gun itself
     handle: @Vector(2, f16),
     range: WeaponRange,
-    texture: rl.Texture2D,
+    texture: SDL.Texture,
     name: []const u8,
 };
 
@@ -19,11 +20,11 @@ const WeaponRange = union(enum) {
         range: f16,
         // How many radians on each side of the attack angle the weapon reaches
         angle: f16,
-        slice_animation: rl.Texture2D,
+        slice_animation: SDL.Texture,
     },
     range: struct {
         damage: u16,
-        bullet_texture: rl.Texture2D,
+        bullet_texture: SDL.Texture,
     },
 };
 
@@ -34,9 +35,10 @@ pub fn makeBullet(
     cursor: @Vector(2, f32),
     window_origin: @Vector(2, f32),
     window_scale: f32,
-) World.WorldItem {
-    const weaponw: f32 = @floatFromInt(4 * gun.texture.width);
-    const weaponh: f32 = @floatFromInt(4 * gun.texture.height);
+) error{SdlError}!World.WorldItem {
+    const info = try gun.texture.query();
+    const weaponw: f32 = @floatFromInt(4 * info.width);
+    const weaponh: f32 = @floatFromInt(4 * info.height);
     const weaponx = owner.c.pos[0] + owner.c.weapon_mount.?[0] - gun.handle[0];
     const weapony = owner.c.pos[1] + owner.c.weapon_mount.?[1] - gun.handle[0];
     const angle = std.math.atan2(
@@ -58,6 +60,8 @@ pub fn makeBullet(
             .centerpoint = @splat(5),
             .effect = @splat(0),
             .hitbox = @splat(10),
+            .render_width = 10,
+            .render_height = 10,
             .texture_offset = @splat(5),
         },
         .meta = .{ .bullet = .{

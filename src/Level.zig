@@ -1,5 +1,5 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
 
 const World = @import("World.zig");
 
@@ -41,7 +41,7 @@ pub const Room = struct {
     room_type: RoomType,
     dimensions: @Vector(2, u16),
     enemies: ?[]World.WorldItem,
-    texture: rl.Texture2D,
+    texture: SDL.Texture,
     completed: bool = false,
     id: u8,
 

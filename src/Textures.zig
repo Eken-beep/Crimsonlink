@@ -1,5 +1,6 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
+
 const World = @import("World.zig");
 const fs = std.fs;
 
@@ -34,10 +35,9 @@ pub const Animation = struct {
 
     pub fn getFrame(
         anim: *Anim,
-        pos: @Vector(2, f32),
         v: @Vector(2, f32),
         state: World.State,
-    ) rl.Texture2D {
+    ) SDL.Texture {
         const angle: f32 = std.math.atan2(v[1], v[0]);
         var direction: ?usize = null;
 
@@ -102,14 +102,6 @@ pub const Animation = struct {
         }
         if (direction) |d| anim.direction = @intCast(d);
 
-        if (DRAW_HITBOXES) {
-            const px: i32 = @intFromFloat(pos[0]);
-            const py: i32 = @intFromFloat(pos[1]);
-            const x: i32 = @intFromFloat(@cos(angle) * 100);
-            const y: i32 = @intFromFloat(@sin(angle) * 100);
-            rl.drawLine(px, py, x + px, y + py, rl.Color.sky_blue);
-        }
-
         anim.previous_velocity = v;
         const store = anim.frames[direction orelse anim.direction].get(state);
         return switch (store) {
@@ -135,7 +127,7 @@ const DataDir = union(enum) {
     Custom: []const u8,
 };
 
-pub const TextureStore = union(enum) { single: rl.Texture2D, slice: []rl.Texture2D };
+pub const TextureStore = union(enum) { single: SDL.Texture, slice: []SDL.Texture };
 
 pub const AnimationData = struct {
     const Self = @This();
@@ -188,7 +180,7 @@ pub const AnimationData = struct {
 // name_directionid_state_n
 // ----
 
-pub fn loadTextures(allocator: std.mem.Allocator) !std.StringArrayHashMap(TextureStore) {
+pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringArrayHashMap(TextureStore) {
     var arena = std.heap.ArenaAllocator.init(allocator);
     const arena_allocator = arena.allocator();
 
@@ -202,9 +194,12 @@ pub fn loadTextures(allocator: std.mem.Allocator) !std.StringArrayHashMap(Textur
 
     var result = std.StringArrayHashMap(TextureStore).init(allocator);
     // Add these here to act as missing textures
-    try result.put("fallback_single", TextureStore{ .single = rl.loadTextureFromImage(rl.genImageColor(50, 50, rl.Color.pink)) });
-    const fallback_many = try allocator.alloc(rl.Texture2D, 12);
-    for (0..fallback_many.len) |i| fallback_many[i] = rl.loadTextureFromImage(rl.genImageColor(50, 50, rl.Color.pink));
+    var fb_surface = try SDL.createRgbSurfaceWithFormat(1, 1, .rgb555);
+    try fb_surface.fillRect(null, SDL.Color.magenta);
+
+    try result.put("fallback_single", TextureStore{ .single = try SDL.createTextureFromSurface(r.*, fb_surface) });
+    const fallback_many = try allocator.alloc(SDL.Texture, 12);
+    for (0..fallback_many.len) |i| fallback_many[i] = try SDL.createTextureFromSurface(r.*, fb_surface);
     try result.put("fallback_many", TextureStore{ .slice = fallback_many });
 
     var path_arraylist = std.ArrayList([]const u8).init(arena_allocator);
@@ -221,7 +216,7 @@ pub fn loadTextures(allocator: std.mem.Allocator) !std.StringArrayHashMap(Textur
     std.mem.sort([]const u8, path_arraylist.items, {}, comparePaths);
 
     {
-        var buffer: [100]rl.Texture2D = undefined;
+        var buffer: [100]SDL.Texture = undefined;
         // Keep track of where in the buffer we currently are
         var buffer_pointer: usize = 0;
         // The name of the file without the path extension and numbering
@@ -235,25 +230,25 @@ pub fn loadTextures(allocator: std.mem.Allocator) !std.StringArrayHashMap(Textur
             std.mem.copyForwards(u8, file_basename_permanent, file_basename);
             std.debug.print("{s}\n", .{file_basename});
 
-            const image = rl.loadImage(path);
+            const texture = try SDL.image.loadTexture(r.*, path);
 
             if (std.mem.eql(u8, file_basename, prev_filename_stem)) {
                 buffer_pointer += 1;
-                buffer[buffer_pointer] = rl.loadTextureFromImage(image);
+                buffer[buffer_pointer] = texture;
             } else {
                 // Here we need to add something to the hash map, as something is loaded
                 // Start by adding what was previously in the buffer to the list
                 if (buffer_pointer == 0) {
                     try result.put(prev_filename_stem, TextureStore{ .single = buffer[0] });
                 } else {
-                    const group_texture = try allocator.alloc(rl.Texture2D, buffer_pointer + 1);
-                    std.mem.copyBackwards(rl.Texture2D, group_texture, buffer[0 .. buffer_pointer + 1]);
+                    const group_texture = try allocator.alloc(SDL.Texture, buffer_pointer + 1);
+                    std.mem.copyBackwards(SDL.Texture, group_texture, buffer[0 .. buffer_pointer + 1]);
                     try result.put(prev_filename_stem, TextureStore{ .slice = group_texture });
                 }
                 buffer_pointer = 0;
 
                 // Then add the current iteration into the buffer
-                buffer[buffer_pointer] = rl.loadTextureFromImage(image);
+                buffer[buffer_pointer] = texture;
             }
             prev_filename_stem = file_basename_permanent;
         }

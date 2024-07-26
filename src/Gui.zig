@@ -1,13 +1,11 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
 
 const Window = @import("Window.zig");
 const Player = @import("Player.zig");
 const Textures = @import("Textures.zig");
 const Statemanager = @import("Statemanager.zig");
 const World = @import("World.zig");
-
-const color = rl.Color;
 
 const Self = @This();
 
@@ -60,19 +58,19 @@ const Container = struct {
     columns: u8,
     column_width: u16,
     elements: []GuiItem,
-    border_color: rl.Color,
-    bg_color: rl.Color,
-    fg_color: rl.Color,
+    border_color: SDL.Color,
+    bg_color: SDL.Color,
+    fg_color: SDL.Color,
 };
 
 const Label = struct {
     // Label can be either image or text, or both
-    image: ?rl.Texture2D,
+    image: ?SDL.Texture,
     text: ?[:0]const u8,
     // Use this if the text should be from somewhere else
     // I.E not hardcoded, only numerical values
     text_source: ?[:0]u8,
-    fg_color: rl.Color,
+    fg_color: SDL.Color,
 };
 
 const Button = struct {
@@ -80,13 +78,14 @@ const Button = struct {
     width: u16 = 300,
     height: u16 = 50,
 
-    border_color: rl.Color = color.white,
-    bg_color: rl.Color = color.gray,
-    fg_color: rl.Color = color.black,
+    border_color: SDL.Color = SDL.Color.white,
+    bg_color: SDL.Color = SDL.Color.rgb(50, 50, 50),
+    fg_color: SDL.Color = SDL.Color.black,
 
     // This is horrible and can be done better, idk how
     action: *const fn (
         state: *Statemanager,
+        r: *SDL.Renderer,
         textures: Textures.TextureMap,
         world: *World,
         player: *Player,
@@ -100,14 +99,14 @@ const ProgressBar = struct {
     data: *u16,
     max_val: *u16,
 
-    bg_color: rl.Color,
-    fill_color: rl.Color,
-    fg_color: rl.Color,
+    bg_color: SDL.Color,
+    fill_color: SDL.Color,
+    fg_color: SDL.Color,
 };
 
 const HitpointMeter = struct {
     source: *u16,
-    image: rl.Texture2D,
+    image: SDL.Texture,
 };
 
 const InventorySlot = struct {
@@ -116,6 +115,7 @@ const InventorySlot = struct {
 };
 
 pub fn reloadGui(
+    r: *SDL.Renderer,
     gui: []GuiSegment,
     window: Window,
     mouse: ?@Vector(2, i32),
@@ -142,6 +142,7 @@ pub fn reloadGui(
                 current_column,
             )) : (element_id += 1) {
                 const element_size = drawElement(
+                    r,
                     segment.elements[element_id],
                     cursor,
                     window,
@@ -186,6 +187,7 @@ const ElementDrawError = error{
 };
 
 fn drawElement(
+    r: *SDL.Renderer,
     element: GuiItem,
     cursor: @Vector(3, u16),
     window: Window,
@@ -204,18 +206,27 @@ fn drawElement(
                 if (m[0] > cursor[0] and m[0] < cursor[0] + btn.width)
                     if (m[1] > cursor[1] and m[1] < cursor[1] + btn.height) {
                         std.debug.print("Clicked a button: {s}\n", .{btn.text});
-                        try btn.action(state, textures, world, player);
+                        try btn.action(state, r, textures, world, player);
                     };
 
-            drawObjFrame(cursor[0], cursor[1] - if (cursor[2] == 1) btn.height else 0, btn.width, btn.height, btn.bg_color, btn.border_color, window.gui_scale);
-            const txt_len: i32 = @intCast(rl.measureText(btn.text, window.fontsize));
-            rl.drawText(
-                btn.text,
-                cursor[0] + btn.width / 2 - @divTrunc(txt_len, 2),
-                cursor[1] + btn.height / 2 - @divTrunc(window.fontsize, 2) - cursor[2] * btn.height,
-                window.fontsize,
-                btn.fg_color,
+            try drawObjFrame(
+                r,
+                cursor[0],
+                cursor[1] - if (cursor[2] == 1) btn.height else 0,
+                btn.width,
+                btn.height,
+                btn.bg_color,
+                btn.border_color,
+                window.gui_scale,
             );
+            //const txt_len: i32 = @intCast(rl.measureText(btn.text, window.fontsize));
+            //rl.drawText(
+            //    btn.text,
+            //    cursor[0] + btn.width / 2 - @divTrunc(txt_len, 2),
+            //    cursor[1] + btn.height / 2 - @divTrunc(window.fontsize, 2) - cursor[2] * btn.height,
+            //    window.fontsize,
+            //    btn.fg_color,
+            //);
             return @Vector(2, u16){ btn.width, btn.height + window.gui_spacing };
         },
         .row => |row| {
@@ -224,7 +235,7 @@ fn drawElement(
             for (row) |item| {
                 // This is the reason we need this as a vector
                 // When drawing a row we care about the x, but otherwise only the y
-                const item_dimensions = try drawElement(item, cursor, window, mouse, state, textures, world, player);
+                const item_dimensions = try drawElement(r, item, cursor, window, mouse, state, textures, world, player);
 
                 current_height = @max(current_height, item_dimensions[1]);
                 local_cursorx += item_dimensions[0];
@@ -235,62 +246,55 @@ fn drawElement(
             var local_cursorx = cursor[0] + window.gui_spacing * window.gui_scale;
             var height: u16 = 0;
             if (lbl.image) |image| {
-                const w: u16 = @intCast(image.width);
-                const h: u16 = @intCast(image.height);
-                local_cursorx += w + window.gui_scale * window.gui_spacing;
-                height = @intCast(h);
-                rl.drawTextureEx(
-                    image,
-                    rl.Vector2.init(@as(f32, @floatFromInt(cursor[0])), @as(f32, @floatFromInt(cursor[1] - cursor[2] * h))),
-                    0,
-                    @as(f32, @floatFromInt(window.gui_scale)),
-                    color.white,
-                );
-            }
-            if (lbl.text) |text| {
-                const w: u16 = @intCast(rl.measureText(text, window.fontsize));
-                const h = window.fontsize;
-                height = @max(h, height);
-                const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
+                const info = try image.query();
+                height = info.height;
+                local_cursorx += info.width + window.gui_scale * window.gui_spacing;
 
-                rl.drawText(text, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
-                local_cursorx += w;
-            } else if (lbl.text_source) |source| {
-                const w: u16 = @intCast(rl.measureText(source, window.fontsize));
-                const h = window.fontsize;
-                height = @max(h, height);
-                const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
-
-                rl.drawText(source, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
-                local_cursorx += w;
+                try r.copy(image, .{
+                    .x = cursor[0],
+                    .y = cursor[1] - cursor[2] * info.height,
+                    .width = info.width,
+                    .height = info.height,
+                }, null);
             }
+            //if (lbl.text) |text| {
+            //    const w: u16 = @intCast(rl.measureText(text, window.fontsize));
+            //    const h = window.fontsize;
+            //    height = @max(h, height);
+            //    const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
+
+            //    rl.drawText(text, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
+            //    local_cursorx += w;
+            //} else if (lbl.text_source) |source| {
+            //    const w: u16 = @intCast(rl.measureText(source, window.fontsize));
+            //    const h = window.fontsize;
+            //    height = @max(h, height);
+            //    const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
+
+            //    rl.drawText(source, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
+            //    local_cursorx += w;
+            //}
             return @Vector(2, u16){ local_cursorx - cursor[0], height };
         },
         .hpm => |hpm| {
             const hp = hpm.source.*;
-            var local_cursorx: i32 = cursor[0];
+            var local_cursorx: u16 = cursor[0];
+            const info = try hpm.image.query();
             for (0..hp) |_| {
-                rl.drawTextureEx(
-                    hpm.image,
-                    rl.Vector2.init(
-                        @as(f32, @floatFromInt(local_cursorx)),
-                        @as(f32, @floatFromInt(cursor[1] - cursor[2] * hpm.image.height)),
-                    ),
-                    0,
-                    @as(f32, @floatFromInt(window.gui_scale)),
-                    color.white,
-                );
-                local_cursorx += @intCast(hpm.image.width);
+                try r.copy(hpm.image, .{ .x = local_cursorx, .y = cursor[1] - cursor[2] * info.height, .width = info.width, .height = info.height }, null);
+                local_cursorx += info.width + window.gui_spacing;
             }
-            return @Vector(2, u16){ @intCast(hpm.image.width * hpm.source.*), @intCast(hpm.image.height) };
+            return @Vector(2, u16){ @intCast(info.width * hpm.source.*), @intCast(info.height) };
         },
         .inventory_slot => |slot| {
-            rl.drawRectangleLines(cursor[0], cursor[1] - 80, 80, 80, color.gray);
+            const rect = SDL.Rectangle{ .x = cursor[0], .y = cursor[1] - 80, .width = 80, .height = 80 };
+            try r.setColorRGB(0, 0, 0);
+            try r.drawRect(rect);
             if (slot.slot_source.*) |item| {
-                rl.drawTexture(item.image, cursor[0], cursor[1] - 80, color.white);
-                var text_buffer = [3:0]u8{ ' ', ' ', ' ' };
-                _ = try std.fmt.bufPrint(&text_buffer, "{d: <3}", .{item.ammount});
-                rl.drawText(&text_buffer, cursor[0] + 10, cursor[1] + 10 - 80, window.fontsize, color.dark_gray);
+                try r.copy(item.image, rect, null);
+                //var text_buffer = [3:0]u8{ ' ', ' ', ' ' };
+                //_ = try std.fmt.bufPrint(&text_buffer, "{d: <3}", .{item.ammount});
+                //rl.drawText(&text_buffer, cursor[0] + 10, cursor[1] + 10 - 80, window.fontsize, color.dark_gray);
             }
             return @Vector(2, u16){ 80, 80 + window.gui_spacing * window.gui_scale };
         },
@@ -301,9 +305,11 @@ fn drawElement(
     }
 }
 
-fn drawObjFrame(x: u16, y: u16, w: u16, h: u16, bgc: rl.Color, bc: rl.Color, scale: u8) void {
-    rl.drawRectangle(x - 2 * scale, y - 2 * scale, w + 4 * scale, h + 4 * scale, bc);
-    rl.drawRectangle(x, y, w, h, bgc);
+fn drawObjFrame(r: *SDL.Renderer, x: u16, y: u16, w: u16, h: u16, bgc: SDL.Color, bc: SDL.Color, scale: u8) error{SdlError}!void {
+    try r.setColor(bc);
+    try r.fillRect(.{ .x = x - 2 * scale, .y = y - 2 * scale, .width = w + 4 * scale, .height = h + 4 * scale });
+    try r.setColor(bgc);
+    try r.fillRect(.{ .x = x, .y = y, .width = w, .height = h });
 }
 
 // The third item in the vector sets the sort order, bottom up or top down
@@ -370,7 +376,7 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
             } };
             result[0].elements[1] = .{ .spc = 20 };
             result[0].elements[2] = .{ .lbl = .{
-                .fg_color = color.white,
+                .fg_color = SDL.Color.white,
                 .image = null,
                 .text = null,
                 .text_source = null,
@@ -378,7 +384,7 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
             result[0].elements[3] = .{ .spc = 20 };
             result[0].elements[4] = .{
                 .lbl = .{
-                    .fg_color = color.white,
+                    .fg_color = SDL.Color.white,
                     .image = Textures.getTexture(textures, "doge").single,
                     .text = null,
                     // Remember changing these after loading the gui
@@ -437,7 +443,7 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .elements = try allocator.alloc(GuiItem, 1),
             };
             result[0].elements[0] = .{ .lbl = .{
-                .fg_color = color.gray,
+                .fg_color = SDL.Color.rgb(50, 50, 50),
                 .image = null,
                 .text_source = null,
                 .text = "Paused",
@@ -489,7 +495,7 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .action = btn_loadParentState,
             } };
             result[0].elements[4] = .{ .lbl = .{
-                .fg_color = color.gray,
+                .fg_color = SDL.Color.rgb(50, 50, 50),
                 .image = null,
                 .text_source = null,
                 .text = "placeholder",
@@ -502,45 +508,45 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
     }
 }
 
-fn btn_launchGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) !void {
+fn btn_launchGame(state: *Statemanager, r: *SDL.Renderer, textures: Textures.TextureMap, world: *World, player: *Player) !void {
     state.*.state = .level;
     // Note about this
     // The ram has to be freed in the main function by setting the
     // halt_gui_rendering variable of the state
-    try state.*.loadLevel(1, textures, player, world);
+    try state.*.loadLevel(r, 1, textures, player, world);
     state.halt_gui_rendering = true;
 }
-fn btn_unpauseGame(state: *Statemanager, textures: Textures.TextureMap, world: *World, player: *Player) !void {
+fn btn_unpauseGame(state: *Statemanager, _: *SDL.Renderer, textures: Textures.TextureMap, world: *World, player: *Player) !void {
     try state.pauseLevel(world, textures, player);
 }
-fn btn_quitGame(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_quitGame(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.state = .exit_game;
     // For some reason closing the window here makes the program segfault
     //rl.closeWindow();
 }
 
-fn btn_loadParentState(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_loadParentState(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_state = state.gui_parent_state;
     state.gui_parent_state = .none;
     state.halt_gui_rendering = true;
 }
-fn btn_setState_settings(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_setState_settings(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_parent_state = state.gui_state;
     state.gui_state = .settings_main;
     state.halt_gui_rendering = true;
 }
-fn btn_setState_mainMenu(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_setState_mainMenu(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_state = .mainmenu_0;
     state.halt_gui_rendering = true;
 }
-fn btn_setState_levelPaused(state: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_setState_levelPaused(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_state = .level_paused;
     state.halt_gui_rendering = true;
 }
-fn btn_setting_fullscreen(_: *Statemanager, _: Textures.TextureMap, _: *World, _: *Player) !void {
-    if (rl.isWindowState(.{ .fullscreen_mode = true })) {
-        rl.setWindowState(.{ .fullscreen_mode = false, .window_resizable = true });
-    } else {
-        rl.setWindowState(.{ .fullscreen_mode = true, .window_resizable = false });
-    }
+fn btn_setting_fullscreen(_: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
+    //if (rl.isWindowState(.{ .fullscreen_mode = true })) {
+    //    rl.setWindowState(.{ .fullscreen_mode = false, .window_resizable = true });
+    //} else {
+    //    rl.setWindowState(.{ .fullscreen_mode = true, .window_resizable = false });
+    //}
 }

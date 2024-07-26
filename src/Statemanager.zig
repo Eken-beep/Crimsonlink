@@ -1,5 +1,5 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
 
 const World = @import("World.zig");
 const Textures = @import("Textures.zig");
@@ -11,6 +11,7 @@ const Level = @import("Level.zig");
 const Self = @This();
 
 const StateError = error{
+    SdlError,
     NoLevel,
     OutOfMemory,
     StateNotPausable,
@@ -55,11 +56,18 @@ pub fn init(backing_allocator: std.mem.Allocator, textures: Textures.TextureMap)
 }
 
 // The level does not manage the world, rather the layout of the rooms
-pub fn loadLevel(self: *Self, id: u8, textures: Textures.TextureMap, player: *Player, world: *World) !void {
+pub fn loadLevel(
+    self: *Self,
+    r: *SDL.Renderer,
+    id: u8,
+    textures: Textures.TextureMap,
+    player: *Player,
+    world: *World,
+) !void {
     self.state = .level;
     self.gui_state = .level;
 
-    self.current_level = try Json.getLevel(id, self.level_allocator, textures);
+    self.current_level = try Json.getLevel(r, id, self.level_allocator, textures);
     // Setting the current room to the first room (spawn)
     // Meanwhile the level always holds the pointer to the spawn
     // This can change when the player moves
@@ -117,8 +125,8 @@ pub fn loadRoom(self: *Self, textures: Textures.TextureMap, player: *Player, roo
     );
     try world.addItem(.{
         .type = World.WorldPacket.player,
-        .x = 400,
-        .y = 200,
+        .x = @as(f32, @floatFromInt(@divTrunc(room.dimensions[0], 2) - 18 * 2)),
+        .y = @as(f32, @floatFromInt(@divTrunc(room.dimensions[1], 2) - 52 * 2)),
         .animation = Textures.Animation{
             .nr_frames = 5,
             .frametime = (0.1),

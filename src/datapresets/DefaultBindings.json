@@ -1,35 +1,35 @@
 [
     {
-        "key": 87,
+        "key": 26,
         "action": "moveup"
     },
     {
-        "key": 65,
+        "key": 4,
         "action": "moveleft"
     },
     {
-        "key": 83,
+        "key": 22,
         "action": "movedown"
     },
     {
-        "key": 68,
+        "key": 7,
         "action": "moveright"
     },
 
     {
-        "key": -87,
+        "key": -26,
         "action": "haltup"
     },
     {
-        "key": -65,
+        "key": -4,
         "action": "haltleft"
     },
     {
-        "key": -83,
+        "key": -22,
         "action": "haltdown"
     },
     {
-        "key": -68,
+        "key": -7,
         "action": "haltright"
     },
 
@@ -47,7 +47,7 @@
 
 
     {
-        "key": 256,
+        "key": 41,
         "action": "pause"
     }
 ]

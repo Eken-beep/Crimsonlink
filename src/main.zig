@@ -1,5 +1,5 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
 
 const Window = @import("Window.zig");
 const Input = @import("Input.zig");
@@ -11,26 +11,56 @@ const Gui = @import("Gui.zig");
 const Json = @import("Json.zig");
 const Level = @import("Level.zig");
 
-const color = rl.Color;
-
 // TODO
 // Do something with the player data struct
-// Spawn bullets that hurt the player
-// Organized input system
+
+const Dt = struct {
+    last: u64,
+    now: u64,
+    dt: f32 = 0,
+
+    pub fn update(self: *@This()) void {
+        self.last = self.now;
+        self.now = SDL.getPerformanceCounter();
+
+        self.dt = @as(f32, @floatFromInt(self.now - self.last)) / @as(f32, @floatFromInt(SDL.getPerformanceFrequency()));
+    }
+};
 
 const fullscreen = true;
 pub fn main() anyerror!void {
-    rl.initWindow(1600, 900, "~Crimsonlink~");
-    rl.setWindowState(rl.ConfigFlags{ .window_resizable = true });
-    rl.setExitKey(rl.KeyboardKey.key_null);
-    rl.setTargetFPS(60);
-    defer rl.closeWindow();
+    try SDL.init(.{
+        .video = true,
+        .events = true,
+        .audio = true,
+    });
+    defer SDL.quit();
+
+    var sdl_window = try SDL.createWindow(
+        "~Crimsonlink~",
+        .{ .centered = {} },
+        .{ .centered = {} },
+        1600,
+        900,
+        .{
+            .vis = .shown,
+            .resizable = true,
+        },
+    );
+    defer sdl_window.destroy();
+
+    var dt = Dt{ .now = SDL.getPerformanceCounter(), .last = 0 };
+
+    var renderer = try SDL.createRenderer(sdl_window, null, .{ .accelerated = true });
+    defer renderer.destroy();
+
+    var running = true;
 
     // This allocator is for everything other than the currently active level and it's associated data
     var general_purpouse_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpouse_allocator.allocator();
 
-    const textures = try Textures.loadTextures(gpa);
+    const textures = try Textures.loadTextures(&renderer, gpa);
 
     var state = try Statemanager.init(gpa, textures);
     state.level_allocator = state.level_arena.allocator();
@@ -48,21 +78,64 @@ pub fn main() anyerror!void {
 
     var goto_room: Level.Direction = .None;
 
-    while (!(rl.windowShouldClose() or state.state == .exit_game)) {
-        if (rl.isWindowResized()) {
-            // isn't going to overflow as u16 anyways so who cares
-            window.update(@as(u16, @intCast(rl.getRenderWidth())), @as(u16, @intCast(rl.getRenderHeight())), 1600, 900);
-        }
+    var mouse_pos: @Vector(2, f32) = @splat(0);
 
-        const mb_left: ?@Vector(2, i32) = if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) blk: {
-            break :blk @Vector(2, i32){ rl.getMouseX(), rl.getMouseY() };
-        } else null;
+    while (running and !(state.state == .exit_game)) {
+        try renderer.setColorRGB(0, 0, 0);
+        try renderer.clear();
+
+        dt.update();
+        var mb_left: ?@Vector(2, i32) = null;
+
+        while (SDL.pollEvent()) |event| {
+            switch (event) {
+                .quit => running = false,
+                .window => |window_event| {
+                    if (window_event.type == .resized) {
+                        // isn't going to overflow as u16 anyways so who cares
+                        window.update(
+                            @as(u16, @intCast(sdl_window.getSize().width)),
+                            @as(u16, @intCast(sdl_window.getSize().height)),
+                            1600,
+                            900,
+                        );
+                    }
+                },
+                .mouse_motion => |mouse| {
+                    mouse_pos = @Vector(2, f32){ @floatFromInt(mouse.x), @floatFromInt(mouse.y) };
+                },
+                .mouse_button_down => |mouse_event| {
+                    switch (mouse_event.button) {
+                        .left => {
+                            try input_state.addEvent(501);
+                            mb_left = @Vector(2, i32){ mouse_event.x, mouse_event.y };
+                        },
+                        else => {},
+                    }
+                },
+                .mouse_button_up => |mb| {
+                    try input_state.addEvent(switch (mb.button) {
+                        .left => -501,
+                        else => 0,
+                    });
+                },
+                .key_down => |key| {
+                    if (!key.is_repeat)
+                        try input_state.addEvent(@as(i10, @intCast(@intFromEnum(key.scancode))));
+                },
+                .key_up => |key| {
+                    // Negative keycodes represent the release of that key
+                    if (!key.is_repeat)
+                        try input_state.addEvent(-@as(i10, @intCast(@intFromEnum(key.scancode))));
+                },
+                else => {},
+            }
+        }
 
         switch (state.state) {
             .main_menu => {
-                rl.beginDrawing();
-                defer rl.endDrawing();
                 try Gui.reloadGui(
+                    &renderer,
                     state.gui,
                     window,
                     mb_left,
@@ -73,20 +146,24 @@ pub fn main() anyerror!void {
                 );
             },
             .level => {
-                try input_state.update();
-                try input_state.parse(&world, &player, window, &state, textures);
-                rl.beginDrawing();
-                defer rl.endDrawing();
+                try input_state.parse(&world, &player, window, &state, textures, mouse_pos);
 
-                rl.drawTextureEx(
-                    world.map,
-                    rl.Vector2.init(window.origin[0], window.origin[1]),
-                    0,
-                    window.scale * 4,
-                    rl.Color.white,
+                try renderer.copyF(world.map, .{
+                    .x = window.origin[0],
+                    .y = window.origin[1],
+                    .width = @as(f32, @floatFromInt(world.dim[0])) * window.scale,
+                    .height = @as(f32, @floatFromInt(world.dim[1])) * window.scale,
+                }, null);
+
+                if (!world.paused) state.current_room.?.*.completed = try world.iterate(
+                    &renderer,
+                    &window,
+                    &player,
+                    &goto_room,
+                    textures,
+                    dt.dt,
+                    input_state.keybinds,
                 );
-
-                if (!world.paused) state.current_room.?.*.completed = world.iterate(&window, &player, &goto_room);
                 if (state.current_room.?.*.completed) {
                     state.current_room.?.*.enemies = null;
 
@@ -102,6 +179,7 @@ pub fn main() anyerror!void {
                 // Reset this immediately after switching room
                 goto_room = .None;
                 try Gui.reloadGui(
+                    &renderer,
                     state.gui,
                     window,
                     mb_left,
@@ -113,7 +191,9 @@ pub fn main() anyerror!void {
             },
             else => {},
         }
-        rl.clearBackground(color.black);
+
+        renderer.present();
+
         if (state.halt_gui_rendering) {
             _ = state.gui_arena.reset(.retain_capacity);
             state.halt_gui_rendering = false;

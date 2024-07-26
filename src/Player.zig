@@ -1,5 +1,6 @@
 const std = @import("std");
-const rl = @import("raylib");
+const SDL = @import("sdl2");
+
 const World = @import("World.zig");
 const Window = @import("Window.zig");
 const Items = @import("Items.zig");
@@ -39,7 +40,7 @@ inventory: struct {
                 if (used_slot.type == i.type) {
                     // Check how much overflow we get and carry that over to the next slot if it happens
                     const overflow: u8 = used_slot.ammount +% i.ammount;
-                    if (overflow < used_slot.ammount) {
+                    if (overflow < 255 - used_slot.ammount) {
                         self.items[index].?.ammount = overflow;
                         return;
                     } else {
@@ -64,7 +65,7 @@ inventory: struct {
 },
 
 pub const Item = struct {
-    image: rl.Texture2D,
+    image: SDL.Texture,
     // We use 255 stacks
     ammount: u8,
     type: enum {
@@ -87,16 +88,14 @@ pub fn addScore(self: *Self, s: u32, time: f32) void {
     };
 }
 
-pub fn mainAttack(self: *Self, world: *World, window: Window) !void {
+pub fn mainAttack(self: *Self, mouse: @Vector(2, f32), world: *World, window: Window) !void {
     if (world.paused) return;
-    const mx: f32 = @floatFromInt(rl.getMouseX());
-    const my: f32 = @floatFromInt(rl.getMouseY());
     try world.items.append(switch (self.forehand.range) {
         .melee => unreachable,
-        .range => Items.makeBullet(
+        .range => try Items.makeBullet(
             self.forehand,
             world.items.items[0],
-            @Vector(2, f32){ mx, my },
+            @Vector(2, f32){ mouse[0], mouse[1] },
             window.origin,
             window.scale,
         ),

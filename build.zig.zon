@@ -1,11 +1,6 @@
 .{
     .name = "Crimsonlink",
     .version = "0.1.0",
-    .dependencies = .{
-        .@"raylib-zig" = .{
-            .url = "https://github.com/Not-Nik/raylib-zig/archive/devel.tar.gz",
-            .hash = "12206a62b7eb9812334d45f35a947860c33ff6ae33cae3cf66f94b4a2f6baeb0f035",
-        },
-    },
-    .paths = .{ "src", "build.zig", "build.zig.zon" },
+    .dependencies = .{},
+    .paths = .{ "src", "build.zig", "build.zig.zon", "SDL" },
 }
