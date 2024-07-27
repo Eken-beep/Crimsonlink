@@ -276,7 +276,6 @@ fn drawElement(
                 window.gui_scale,
             );
 
-            std.debug.print("DRAWING BUTTON '{s}'\n", .{btn.text.*.stored_str[0..]});
             try btn.text.*.draw(r, .{
                 .x = cursor[0] + @divTrunc(@as(c_int, btn.width), 2) - @divTrunc(btn.text.*.size.width, 2),
                 .y = cursor[1] + @divTrunc(@as(c_int, btn.height), 2) - @divTrunc(btn.text.*.size.height, 2) - @as(c_int, cursor[2] * btn.height),
