@@ -66,15 +66,15 @@ const Container = struct {
 const Label = struct {
     // Label can be either image or text, or both
     image: ?SDL.Texture,
-    text: ?[:0]const u8,
+    text: ?*Text,
     // Use this if the text should be from somewhere else
-    // I.E not hardcoded, only numerical values
+    // I.E not hardcoded into the init function
     text_source: ?[:0]u8,
     fg_color: SDL.Color,
 };
 
 const Button = struct {
-    text: [:0]const u8,
+    text: *Text,
     width: u16 = 300,
     height: u16 = 50,
 
@@ -86,6 +86,7 @@ const Button = struct {
     action: *const fn (
         state: *Statemanager,
         r: *SDL.Renderer,
+        font: SDL.ttf.Font,
         textures: Textures.TextureMap,
         world: *World,
         player: *Player,
@@ -112,10 +113,63 @@ const HitpointMeter = struct {
 const InventorySlot = struct {
     slot_source: *?Player.Item,
     id: usize,
+    text: *Text,
+};
+
+pub const Text = struct {
+    // Absolute waste of space
+    stored_str: [100]u8 = std.mem.zeroes([100]u8),
+    str_len: usize = undefined,
+    texture: SDL.Texture = undefined,
+    size: SDL.Size = undefined,
+
+    pub fn draw(self: *@This(), r: *SDL.Renderer, rect: SDL.Rectangle) error{SdlError}!void {
+        try r.copy(self.texture, rect, null);
+    }
+
+    pub fn update(self: *@This(), new_str: []const u8, r: *SDL.Renderer, font: SDL.ttf.Font, color: SDL.Color) error{ SdlError, TtfError, NoSpaceLeft }!void {
+        if (!std.mem.eql(u8, new_str, self.stored_str[0..self.str_len :0])) {
+            std.mem.copyForwards(u8, &self.stored_str, new_str);
+            self.str_len = new_str.len;
+
+            self.texture.destroy();
+            const txt_surface = try font.renderTextSolid(self.stored_str[0..new_str.len :0], color);
+            self.texture = try SDL.createTextureFromSurface(r.*, txt_surface);
+
+            self.size = font.sizeText(self.stored_str[0..new_str.len :0]) catch blk: {
+                const fallback_size: c_int = @intCast(28 * new_str.len);
+                std.log.warn("Could not calculate size of string {s} with current font falling back to size {d}", .{
+                    new_str,
+                    fallback_size,
+                });
+                break :blk SDL.Size{ .width = fallback_size, .height = 28 };
+            };
+        }
+    }
+
+    pub fn init(str: []const u8, r: *SDL.Renderer, font: SDL.ttf.Font, color: SDL.Color) error{ SdlError, TtfError, NoSpaceLeft }!@This() {
+        var result = @This(){ .str_len = str.len };
+
+        std.mem.copyForwards(u8, &result.stored_str, str);
+
+        const txt_surface = try font.renderTextSolid(result.stored_str[0..str.len :0], color);
+        result.texture = try SDL.createTextureFromSurface(r.*, txt_surface);
+
+        result.size = font.sizeText(result.stored_str[0..str.len :0]) catch blk: {
+            const fallback_size: c_int = @intCast(28 * str.len);
+            std.log.warn("Could not calculate size of string {s} with current font falling back to size {d}", .{
+                str,
+                fallback_size,
+            });
+            break :blk SDL.Size{ .width = fallback_size, .height = 28 };
+        };
+        return result;
+    }
 };
 
 pub fn reloadGui(
     r: *SDL.Renderer,
+    font: SDL.ttf.Font,
     gui: []GuiSegment,
     window: Window,
     mouse: ?@Vector(2, i32),
@@ -143,6 +197,7 @@ pub fn reloadGui(
             )) : (element_id += 1) {
                 const element_size = drawElement(
                     r,
+                    font,
                     segment.elements[element_id],
                     cursor,
                     window,
@@ -188,6 +243,7 @@ const ElementDrawError = error{
 
 fn drawElement(
     r: *SDL.Renderer,
+    font: SDL.ttf.Font,
     element: GuiItem,
     cursor: @Vector(3, u16),
     window: Window,
@@ -205,8 +261,8 @@ fn drawElement(
                 // Their positions are only known while being drawn
                 if (m[0] > cursor[0] and m[0] < cursor[0] + btn.width)
                     if (m[1] > cursor[1] and m[1] < cursor[1] + btn.height) {
-                        std.debug.print("Clicked a button: {s}\n", .{btn.text});
-                        try btn.action(state, r, textures, world, player);
+                        std.log.info("Clicked a button: {s}", .{btn.text.*.stored_str[0..]});
+                        try btn.action(state, r, font, textures, world, player);
                     };
 
             try drawObjFrame(
@@ -219,14 +275,15 @@ fn drawElement(
                 btn.border_color,
                 window.gui_scale,
             );
-            //const txt_len: i32 = @intCast(rl.measureText(btn.text, window.fontsize));
-            //rl.drawText(
-            //    btn.text,
-            //    cursor[0] + btn.width / 2 - @divTrunc(txt_len, 2),
-            //    cursor[1] + btn.height / 2 - @divTrunc(window.fontsize, 2) - cursor[2] * btn.height,
-            //    window.fontsize,
-            //    btn.fg_color,
-            //);
+
+            std.debug.print("DRAWING BUTTON '{s}'\n", .{btn.text.*.stored_str[0..]});
+            try btn.text.*.draw(r, .{
+                .x = cursor[0] + @divTrunc(@as(c_int, btn.width), 2) - @divTrunc(btn.text.*.size.width, 2),
+                .y = cursor[1] + @divTrunc(@as(c_int, btn.height), 2) - @divTrunc(btn.text.*.size.height, 2) - @as(c_int, cursor[2] * btn.height),
+                .width = btn.text.*.size.width,
+                .height = btn.text.*.size.height,
+            });
+
             return @Vector(2, u16){ btn.width, btn.height + window.gui_spacing };
         },
         .row => |row| {
@@ -235,7 +292,18 @@ fn drawElement(
             for (row) |item| {
                 // This is the reason we need this as a vector
                 // When drawing a row we care about the x, but otherwise only the y
-                const item_dimensions = try drawElement(r, item, cursor, window, mouse, state, textures, world, player);
+                const item_dimensions = try drawElement(
+                    r,
+                    font,
+                    item,
+                    cursor,
+                    window,
+                    mouse,
+                    state,
+                    textures,
+                    world,
+                    player,
+                );
 
                 current_height = @max(current_height, item_dimensions[1]);
                 local_cursorx += item_dimensions[0];
@@ -257,23 +325,19 @@ fn drawElement(
                     .height = info.height,
                 }, null);
             }
-            //if (lbl.text) |text| {
-            //    const w: u16 = @intCast(rl.measureText(text, window.fontsize));
-            //    const h = window.fontsize;
-            //    height = @max(h, height);
-            //    const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
-
-            //    rl.drawText(text, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
-            //    local_cursorx += w;
-            //} else if (lbl.text_source) |source| {
-            //    const w: u16 = @intCast(rl.measureText(source, window.fontsize));
-            //    const h = window.fontsize;
-            //    height = @max(h, height);
-            //    const height_offset: u16 = @divTrunc(height, 2) - @divTrunc(window.fontsize, 2);
-
-            //    rl.drawText(source, local_cursorx, cursor[1] + height_offset - cursor[2] * h, window.fontsize, lbl.fg_color);
-            //    local_cursorx += w;
-            //}
+            if (lbl.text) |*text| {
+                if (lbl.text_source) |source| {
+                    try text.*.update(source, r, font, lbl.fg_color);
+                }
+                const height_offset: c_int = @divTrunc(height, 2) - @divTrunc(text.*.size.height, 2);
+                try text.*.draw(r, .{
+                    .x = local_cursorx,
+                    .y = cursor[1] + height_offset - cursor[2] * text.*.size.height,
+                    .width = text.*.size.width,
+                    .height = text.*.size.height,
+                });
+                //local_cursorx += @intCast(size.width);
+            }
             return @Vector(2, u16){ local_cursorx - cursor[0], height };
         },
         .hpm => |hpm| {
@@ -287,14 +351,22 @@ fn drawElement(
             return @Vector(2, u16){ @intCast(info.width * hpm.source.*), @intCast(info.height) };
         },
         .inventory_slot => |slot| {
+            // Temporary as we don't have a texture for this yet
             const rect = SDL.Rectangle{ .x = cursor[0], .y = cursor[1] - 80, .width = 80, .height = 80 };
             try r.setColorRGB(0, 0, 0);
             try r.drawRect(rect);
+
             if (slot.slot_source.*) |item| {
                 try r.copy(item.image, rect, null);
-                //var text_buffer = [3:0]u8{ ' ', ' ', ' ' };
-                //_ = try std.fmt.bufPrint(&text_buffer, "{d: <3}", .{item.ammount});
-                //rl.drawText(&text_buffer, cursor[0] + 10, cursor[1] + 10 - 80, window.fontsize, color.dark_gray);
+                var text_buffer = [3:0]u8{ ' ', ' ', ' ' };
+                _ = try std.fmt.bufPrint(&text_buffer, "{d: <3}", .{item.ammount});
+                try slot.text.*.update(&text_buffer, r, font, SDL.Color.black);
+                try slot.text.*.draw(r, .{
+                    .x = cursor[0] + 10 * window.gui_scale,
+                    .y = cursor[1] + 10 * window.gui_scale - cursor[2] * 80,
+                    .width = slot.text.*.size.width,
+                    .height = slot.text.*.size.height,
+                });
             }
             return @Vector(2, u16){ 80, 80 + window.gui_spacing * window.gui_scale };
         },
@@ -357,9 +429,9 @@ fn getCursorStart(pos: Position, column_size: u16, window: Window) @Vector(3, u1
 // GuiSegment contains a position on the screen which the draw function takes along with the number of columns and items
 // and then puts a cursor on that position and begins drawing everything from there, dividing len(elements) by columns to figure
 // out when we need to break the line and begin the next one, useful in menus and stuff
-const GuiInitError = error{ OutOfMemory, IncorrectGuiState };
-pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures.TextureMap) GuiInitError![]GuiSegment {
-    std.debug.print("Loaded gui state {any}\n", .{state});
+const GuiInitError = error{ SdlError, TtfError, OutOfMemory, IncorrectGuiState, NoSpaceLeft };
+pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures.TextureMap, r: *SDL.Renderer, font: SDL.ttf.Font) GuiInitError![]GuiSegment {
+    std.log.info("Loaded gui state {any}", .{state});
     switch (state) {
         .level => {
             var result = try allocator.alloc(GuiSegment, 2);
@@ -375,18 +447,23 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .image = Textures.getTexture(textures, "heart").single,
             } };
             result[0].elements[1] = .{ .spc = 20 };
+            // The whole reason this is heap allocated is because I can't figure out why it coerces to a const otherwise
+            const text1 = try allocator.create(Text);
+            text1.* = try Text.init(" ", r, font, SDL.Color.black);
             result[0].elements[2] = .{ .lbl = .{
                 .fg_color = SDL.Color.white,
                 .image = null,
-                .text = null,
+                .text = text1,
                 .text_source = null,
             } };
             result[0].elements[3] = .{ .spc = 20 };
+            const text2 = try allocator.create(Text);
+            text2.* = try Text.init(" ", r, font, SDL.Color.black);
             result[0].elements[4] = .{
                 .lbl = .{
                     .fg_color = SDL.Color.white,
                     .image = Textures.getTexture(textures, "doge").single,
-                    .text = null,
+                    .text = text2,
                     // Remember changing these after loading the gui
                     .text_source = null,
                 },
@@ -400,9 +477,12 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .elements = try allocator.alloc(GuiItem, 4),
             };
             for (result[1].elements, 0..) |*element, i| {
+                const text = try allocator.create(Text);
+                text.* = try Text.init(" ", r, font, SDL.Color.black);
                 element.* = .{ .inventory_slot = .{
                     .id = i,
                     .slot_source = undefined,
+                    .text = text,
                 } };
             }
             return result;
@@ -417,16 +497,22 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .elements = try allocator.alloc(GuiItem, 4),
             };
             result[0].elements[0] = .{ .spc = 300 };
+            const text1 = try allocator.create(Text);
+            text1.* = try Text.init("Start", r, font, SDL.Color.black);
             result[0].elements[1] = .{ .btn = .{
-                .text = "Start",
+                .text = text1,
                 .action = btn_launchGame,
             } };
+            const text2 = try allocator.create(Text);
+            text2.* = try Text.init("Settings", r, font, SDL.Color.black);
             result[0].elements[2] = .{ .btn = .{
-                .text = "Settings",
+                .text = text2,
                 .action = btn_setState_settings,
             } };
+            const text3 = try allocator.create(Text);
+            text3.* = try Text.init("Quit", r, font, SDL.Color.black);
             result[0].elements[3] = .{ .btn = .{
-                .text = "Quit",
+                .text = text3,
                 .action = btn_quitGame,
             } };
 
@@ -442,11 +528,13 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .column_width = 130,
                 .elements = try allocator.alloc(GuiItem, 1),
             };
+            const text1 = try allocator.create(Text);
+            text1.* = try Text.init("Paused", r, font, SDL.Color.black);
             result[0].elements[0] = .{ .lbl = .{
                 .fg_color = SDL.Color.rgb(50, 50, 50),
                 .image = null,
                 .text_source = null,
-                .text = "Paused",
+                .text = text1,
             } };
 
             // Main buttons
@@ -457,16 +545,22 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
                 .elements = try allocator.alloc(GuiItem, 4),
             };
             result[1].elements[0] = .{ .spc = 300 };
+            const text2 = try allocator.create(Text);
+            text2.* = try Text.init("Resume", r, font, SDL.Color.black);
             result[1].elements[1] = .{ .btn = .{
-                .text = "Resume Game",
+                .text = text2,
                 .action = btn_unpauseGame,
             } };
+            const text3 = try allocator.create(Text);
+            text3.* = try Text.init("Settings", r, font, SDL.Color.black);
             result[1].elements[2] = .{ .btn = .{
-                .text = "Settings",
+                .text = text3,
                 .action = btn_setState_settings,
             } };
+            const text4 = try allocator.create(Text);
+            text4.* = try Text.init("Quit Game", r, font, SDL.Color.black);
             result[1].elements[3] = .{ .btn = .{
-                .text = "Quit game",
+                .text = text4,
                 .action = btn_quitGame,
             } };
             return result;
@@ -483,22 +577,28 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
 
             // Column 1
             result[0].elements[0] = .{ .spc = 300 };
+            const text1 = try allocator.create(Text);
+            text1.* = try Text.init("Fullscreen", r, font, SDL.Color.black);
             result[0].elements[1] = .{ .btn = .{
-                .text = "Fullscreen",
+                .text = text1,
                 .action = btn_setting_fullscreen,
             } };
 
             // Column 2
             result[0].elements[2] = .{ .spc = 300 };
+            const text2 = try allocator.create(Text);
+            text2.* = try Text.init("Back", r, font, SDL.Color.black);
             result[0].elements[3] = .{ .btn = .{
-                .text = "Back",
+                .text = text2,
                 .action = btn_loadParentState,
             } };
+            const text3 = try allocator.create(Text);
+            text3.* = try Text.init("Placeholder", r, font, SDL.Color.black);
             result[0].elements[4] = .{ .lbl = .{
                 .fg_color = SDL.Color.rgb(50, 50, 50),
                 .image = null,
                 .text_source = null,
-                .text = "placeholder",
+                .text = text3,
             } };
 
             return result;
@@ -508,7 +608,7 @@ pub fn GuiInit(allocator: std.mem.Allocator, state: GuiState, textures: Textures
     }
 }
 
-fn btn_launchGame(state: *Statemanager, r: *SDL.Renderer, textures: Textures.TextureMap, world: *World, player: *Player) !void {
+fn btn_launchGame(state: *Statemanager, r: *SDL.Renderer, _: SDL.ttf.Font, textures: Textures.TextureMap, world: *World, player: *Player) !void {
     state.*.state = .level;
     // Note about this
     // The ram has to be freed in the main function by setting the
@@ -516,34 +616,34 @@ fn btn_launchGame(state: *Statemanager, r: *SDL.Renderer, textures: Textures.Tex
     try state.*.loadLevel(r, 1, textures, player, world);
     state.halt_gui_rendering = true;
 }
-fn btn_unpauseGame(state: *Statemanager, _: *SDL.Renderer, textures: Textures.TextureMap, world: *World, player: *Player) !void {
-    try state.pauseLevel(world, textures, player);
+fn btn_unpauseGame(state: *Statemanager, r: *SDL.Renderer, font: SDL.ttf.Font, textures: Textures.TextureMap, world: *World, player: *Player) !void {
+    try state.pauseLevel(world, textures, player, r, font);
 }
-fn btn_quitGame(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_quitGame(state: *Statemanager, _: *SDL.Renderer, _: SDL.ttf.Font, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.state = .exit_game;
     // For some reason closing the window here makes the program segfault
     //rl.closeWindow();
 }
 
-fn btn_loadParentState(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_loadParentState(state: *Statemanager, _: *SDL.Renderer, _: SDL.ttf.Font, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_state = state.gui_parent_state;
     state.gui_parent_state = .none;
     state.halt_gui_rendering = true;
 }
-fn btn_setState_settings(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_setState_settings(state: *Statemanager, _: *SDL.Renderer, _: SDL.ttf.Font, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_parent_state = state.gui_state;
     state.gui_state = .settings_main;
     state.halt_gui_rendering = true;
 }
-fn btn_setState_mainMenu(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_setState_mainMenu(state: *Statemanager, _: *SDL.Renderer, _: SDL.ttf.Font, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_state = .mainmenu_0;
     state.halt_gui_rendering = true;
 }
-fn btn_setState_levelPaused(state: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_setState_levelPaused(state: *Statemanager, _: *SDL.Renderer, _: SDL.ttf.Font, _: Textures.TextureMap, _: *World, _: *Player) !void {
     state.gui_state = .level_paused;
     state.halt_gui_rendering = true;
 }
-fn btn_setting_fullscreen(_: *Statemanager, _: *SDL.Renderer, _: Textures.TextureMap, _: *World, _: *Player) !void {
+fn btn_setting_fullscreen(_: *Statemanager, _: *SDL.Renderer, _: SDL.ttf.Font, _: Textures.TextureMap, _: *World, _: *Player) !void {
     //if (rl.isWindowState(.{ .fullscreen_mode = true })) {
     //    rl.setWindowState(.{ .fullscreen_mode = false, .window_resizable = true });
     //} else {

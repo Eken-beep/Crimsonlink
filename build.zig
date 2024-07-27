@@ -14,6 +14,7 @@ pub fn build(b: *std.Build) !void {
 
     const sdk = Sdk.init(b, null, null);
     sdk.link(exe, .dynamic, .SDL2);
+    sdk.link(exe, .dynamic, .SDL2_ttf);
     exe.root_module.addImport("sdl2", sdk.getWrapperModule());
 
     const run_cmd = b.addRunArtifact(exe);

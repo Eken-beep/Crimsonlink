@@ -3,8 +3,6 @@ const SDL = @import("sdl2");
 
 const World = @import("World.zig");
 
-const print = std.debug.print;
-
 const LevelGenerationError = error{
     OutOfMemory,
 };
@@ -46,6 +44,7 @@ pub const Room = struct {
     id: u8,
 
     pub fn printSelf(self: *Self, cameFrom: Direction, depth: u4) void {
+        const print = std.debug.print();
         print("depth {d} with {d}\n", .{ depth, self.id });
         if (self.north) |n| {
             if (cameFrom != .North) {
@@ -81,9 +80,7 @@ pub fn genLevel(allocator: std.mem.Allocator, room_types: []Room) LevelGeneratio
     const seed: u64 = undefined;
 
     var prng = std.rand.DefaultPrng.init(seed);
-    for (room_types) |room| {
-        print("{any}\n", .{room.room_type});
-    }
+
     var id: u8 = 0;
     var loot_spawned: f32 = 2;
     var boss_has_spawned: bool = false;
@@ -122,7 +119,7 @@ fn makeRooms(
     return_room.* = room;
     id.* += 1;
     return_room.*.id = id.*;
-    print("Generated room: {d} of type: {any}\n", .{ return_room.*.id, return_room.room_type });
+    std.log.info("Generated room: {d} of type: {any}", .{ return_room.*.id, return_room.room_type });
     return_room.*.north = if (prev_direction == .North) prev_room else blk: {
         const room_type = all_rooms[rand.intRangeAtMost(usize, 3, all_rooms.len - 1)];
         if (rand.float(f32) < depth) {

@@ -223,12 +223,12 @@ pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringA
         // For comparing against
         var prev_filename_stem: []const u8 = "null";
 
+        std.log.info("Found the following images: \n {s}", .{path_arraylist.items});
         for (path_arraylist.items) |f| {
             const path = fs.path.joinZ(arena_allocator, &[_][]const u8{ "assets", f }) catch continue;
             const file_basename = getFilepathStem(f) catch continue;
             const file_basename_permanent = allocator.alloc(u8, file_basename.len) catch continue;
             std.mem.copyForwards(u8, file_basename_permanent, file_basename);
-            std.debug.print("{s}\n", .{file_basename});
 
             const texture = try SDL.image.loadTexture(r.*, path);
 
@@ -253,8 +253,6 @@ pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringA
             prev_filename_stem = file_basename_permanent;
         }
     }
-    std.debug.print("LOADED IMAGES:\n", .{});
-    for (result.keys()) |k| std.debug.print("{s}\n", .{k});
     return result;
 }
 
@@ -274,7 +272,7 @@ pub fn getTextures(textures: TextureMap, name: []const u8) TextureStore {
 
 fn getFilepathStem(path: []const u8) FsAccessError![]const u8 {
     var filename = fs.path.stem(path);
-    while (filename[filename.len - 1] > '0' and filename[filename.len - 1] < '9')
+    while (filename[filename.len - 1] >= '0' and filename[filename.len - 1] <= '9')
         filename = filename[0 .. filename.len - 1];
 
     // Remove the last _ that separates the numbering

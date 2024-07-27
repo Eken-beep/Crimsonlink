@@ -37,7 +37,7 @@ allocator: std.mem.Allocator,
 level_arena: std.heap.ArenaAllocator,
 level_allocator: std.mem.Allocator,
 
-pub fn init(backing_allocator: std.mem.Allocator, textures: Textures.TextureMap) !Self {
+pub fn init(backing_allocator: std.mem.Allocator, textures: Textures.TextureMap, r: *SDL.Renderer, font: SDL.ttf.Font) !Self {
     var result = Self{
         .state = .main_menu,
         .gui = undefined,
@@ -51,7 +51,7 @@ pub fn init(backing_allocator: std.mem.Allocator, textures: Textures.TextureMap)
         .level_arena = std.heap.ArenaAllocator.init(backing_allocator),
         .level_allocator = undefined,
     };
-    result.gui = try Gui.GuiInit(result.gui_arena.allocator(), .mainmenu_0, textures);
+    result.gui = try Gui.GuiInit(result.gui_arena.allocator(), .mainmenu_0, textures, r, font);
     return result;
 }
 
@@ -82,16 +82,16 @@ pub fn unloadLevel(self: *Self) void {
 
 // This does all the extra around loading a gui
 // like setting the pointers to the data
-pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player) !void {
+pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player, r: *SDL.Renderer, font: SDL.ttf.Font) !void {
     // We keep the capacity when reloading the gui during a level or inside a menu
     if (!self.halt_gui_rendering) _ = self.gui_arena.reset(.retain_capacity);
 
     switch (self.gui_state) {
         .mainmenu_0 => {
-            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .mainmenu_0, textures);
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .mainmenu_0, textures, r, font);
         },
         .level => {
-            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures);
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level, textures, r, font);
             self.gui[0].elements[0].hpm.source = &player.*.hp;
             self.gui[0].elements[2].lbl.text_source = &player.*.current_score_str;
             self.gui[0].elements[4].lbl.text_source = &player.*.inventory.dogecoin_str_rep;
@@ -106,10 +106,10 @@ pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player) !v
             }
         },
         .level_paused => {
-            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level_paused, textures);
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .level_paused, textures, r, font);
         },
         .settings_main => {
-            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .settings_main, textures);
+            self.gui = try Gui.GuiInit(self.gui_arena.allocator(), .settings_main, textures, r, font);
         },
         else => unreachable,
     }
@@ -171,9 +171,16 @@ pub fn loadRoom(self: *Self, textures: Textures.TextureMap, player: *Player, roo
     return world;
 }
 
-pub fn pauseLevel(self: *Self, world: *World, textures: std.StringArrayHashMap(Textures.TextureStore), player: *Player) !void {
+pub fn pauseLevel(
+    self: *Self,
+    world: *World,
+    textures: std.StringArrayHashMap(Textures.TextureStore),
+    player: *Player,
+    r: *SDL.Renderer,
+    font: SDL.ttf.Font,
+) !void {
     //if (self.state != .level or self.state != .level_paused) return StateError.StateNotPausable;
     world.paused = !world.paused;
     self.gui_state = if (world.paused) .level_paused else .level;
-    try self.reloadGui(textures, player);
+    try self.reloadGui(textures, player, r, font);
 }

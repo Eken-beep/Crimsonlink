@@ -27,6 +27,8 @@ const Dt = struct {
     }
 };
 
+const fontpath: [:0]const u8 = "assets/neuropol_x.ttf";
+
 const fullscreen = true;
 pub fn main() anyerror!void {
     try SDL.init(.{
@@ -54,7 +56,19 @@ pub fn main() anyerror!void {
     var renderer = try SDL.createRenderer(sdl_window, null, .{ .accelerated = true });
     defer renderer.destroy();
 
+    try SDL.ttf.init();
+    defer SDL.ttf.quit();
+
     var running = true;
+
+    var window = Window{ .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
+
+    const font = SDL.ttf.openFont(fontpath, window.fontsize) catch {
+        std.log.err("Failed to open font at {s}", .{fontpath});
+        return;
+    };
+
+    defer font.close();
 
     // This allocator is for everything other than the currently active level and it's associated data
     var general_purpouse_allocator = std.heap.GeneralPurposeAllocator(.{}){};
@@ -62,10 +76,9 @@ pub fn main() anyerror!void {
 
     const textures = try Textures.loadTextures(&renderer, gpa);
 
-    var state = try Statemanager.init(gpa, textures);
+    var state = try Statemanager.init(gpa, textures, &renderer, font);
     state.level_allocator = state.level_arena.allocator();
 
-    var window = Window{ .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
     var world: World = undefined;
 
     var input_state = Input.InputState{
@@ -136,6 +149,7 @@ pub fn main() anyerror!void {
             .main_menu => {
                 try Gui.reloadGui(
                     &renderer,
+                    font,
                     state.gui,
                     window,
                     mb_left,
@@ -146,7 +160,7 @@ pub fn main() anyerror!void {
                 );
             },
             .level => {
-                try input_state.parse(&world, &player, window, &state, textures, mouse_pos);
+                try input_state.parse(&world, &player, window, &state, textures, mouse_pos, &renderer, font);
 
                 try renderer.copyF(world.map, .{
                     .x = window.origin[0],
@@ -180,6 +194,7 @@ pub fn main() anyerror!void {
                 goto_room = .None;
                 try Gui.reloadGui(
                     &renderer,
+                    font,
                     state.gui,
                     window,
                     mb_left,
@@ -198,7 +213,7 @@ pub fn main() anyerror!void {
             _ = state.gui_arena.reset(.retain_capacity);
             state.halt_gui_rendering = false;
 
-            try state.reloadGui(textures, &player);
+            try state.reloadGui(textures, &player, &renderer, font);
         }
     }
     state.unloadLevel();

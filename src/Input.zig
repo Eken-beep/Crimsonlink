@@ -44,6 +44,8 @@ pub const InputState = struct {
         state: *Statemanager,
         textures: Textures.TextureMap,
         mouse: @Vector(2, f32),
+        r: *SDL.Renderer,
+        font: SDL.ttf.Font,
     ) !void {
         while (self.active_actions.items.len > 0) {
             switch (self.active_actions.pop()) {
@@ -60,7 +62,7 @@ pub const InputState = struct {
                 // Shooting
                 .shoot_begin => try player.mainAttack(mouse, world, window),
 
-                .pause => try state.pauseLevel(world, textures, player),
+                .pause => try state.pauseLevel(world, textures, player, r, font),
                 else => {},
             }
         }
