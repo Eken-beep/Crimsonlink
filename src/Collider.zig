@@ -9,6 +9,7 @@ pub const Collider = struct {
     pos: @Vector(2, f32),
     vel: @Vector(2, f32),
     hitbox: @Vector(2, f16),
+    sprite: ?SDL.Texture = null,
     centerpoint: @Vector(2, f16),
     // These should mostly just be the same as the hitbox
     // Except when the image is too big

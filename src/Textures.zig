@@ -23,13 +23,20 @@ pub const Animation = struct {
     avalilable_directions: u8 = 1,
     previous_velocity: @Vector(2, f32) = @splat(0),
 
-    pub fn step(anim: *Anim, dt: f32) void {
+    pub fn step(anim: *Anim, dt: f32, state: World.State) void {
         anim.timer += dt;
         if (anim.timer > anim.frametime) {
             anim.timer = 0;
             anim.current_frame += 1;
 
-            if (anim.current_frame == anim.nr_frames) anim.current_frame = 0;
+            const direction_frames = anim.frames[anim.direction].get(state);
+
+            switch (direction_frames) {
+                .slice => {
+                    if (anim.current_frame == direction_frames.slice.len) anim.current_frame = 0;
+                },
+                .single => anim.current_frame = 0,
+            }
         }
     }
 
@@ -148,19 +155,19 @@ pub const AnimationData = struct {
         return Self{
             .idle = blk: {
                 std.mem.copyForwards(u8, name_buf_end, "_idle");
-                break :blk (textures.get(name_buf[0 .. name.len + 5]) orelse textures.get("fallback_many").?);
+                break :blk (textures.get(name_buf[0 .. name.len + 5]) orelse textures.get("fallback").?);
             },
             .jumping = blk: {
                 std.mem.copyForwards(u8, name_buf_end, "_jumping");
-                break :blk (textures.get(name_buf[0 .. name.len + 8]) orelse textures.get("fallback_many").?);
+                break :blk (textures.get(name_buf[0 .. name.len + 8]) orelse textures.get("fallback").?);
             },
             .shooting = blk: {
                 std.mem.copyForwards(u8, name_buf_end, "_shooting");
-                break :blk (textures.get(name_buf[0 .. name.len + 9]) orelse textures.get("fallback_many").?);
+                break :blk (textures.get(name_buf[0 .. name.len + 9]) orelse textures.get("fallback").?);
             },
             .walking = blk: {
                 std.mem.copyForwards(u8, name_buf_end, "_walking");
-                break :blk (textures.get(name_buf[0 .. name.len + 8]) orelse textures.get("fallback_many").?);
+                break :blk (textures.get(name_buf[0 .. name.len + 8]) orelse textures.get("fallback").?);
             },
         };
     }
@@ -184,7 +191,9 @@ pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringA
     var arena = std.heap.ArenaAllocator.init(allocator);
     const arena_allocator = arena.allocator();
 
-    var dir = try getOrMakeDataDir(arena_allocator, DataDir.InPackage);
+    const location = DataDir.InPackage;
+
+    var dir = try getOrMakeDataDir(arena_allocator, location);
     var walker = try dir.walk(arena_allocator);
     defer {
         walker.deinit();
@@ -197,10 +206,7 @@ pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringA
     var fb_surface = try SDL.createRgbSurfaceWithFormat(1, 1, .rgb555);
     try fb_surface.fillRect(null, SDL.Color.magenta);
 
-    try result.put("fallback_single", TextureStore{ .single = try SDL.createTextureFromSurface(r.*, fb_surface) });
-    const fallback_many = try allocator.alloc(SDL.Texture, 12);
-    for (0..fallback_many.len) |i| fallback_many[i] = try SDL.createTextureFromSurface(r.*, fb_surface);
-    try result.put("fallback_many", TextureStore{ .slice = fallback_many });
+    try result.put("fallback", TextureStore{ .single = try SDL.createTextureFromSurface(r.*, fb_surface) });
 
     var path_arraylist = std.ArrayList([]const u8).init(arena_allocator);
     while (try walker.next()) |f| {
@@ -225,7 +231,11 @@ pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringA
 
         std.log.info("Found the following images: \n {s}", .{path_arraylist.items});
         for (path_arraylist.items) |f| {
-            const path = fs.path.joinZ(arena_allocator, &[_][]const u8{ "assets", f }) catch continue;
+            const path = switch (location) {
+                .InPackage => fs.path.joinZ(arena_allocator, &[_][]const u8{ "assets", f }) catch continue,
+                .Standard => fs.path.joinZ(allocator, &[_][]const u8{ fs.getAppDataDir(allocator, "Crimsonlink") catch continue, f }) catch continue,
+                .Custom => continue,
+            };
             const file_basename = getFilepathStem(f) catch continue;
             const file_basename_permanent = allocator.alloc(u8, file_basename.len) catch continue;
             std.mem.copyForwards(u8, file_basename_permanent, file_basename);
@@ -263,11 +273,7 @@ fn comparePaths(_: void, lhs: []const u8, rhs: []const u8) bool {
 }
 
 pub fn getTexture(textures: TextureMap, name: []const u8) TextureStore {
-    return textures.get(name) orelse textures.get("fallback_single").?;
-}
-
-pub fn getTextures(textures: TextureMap, name: []const u8) TextureStore {
-    return textures.get(name) orelse textures.get("fallback_many").?;
+    return textures.get(name) orelse textures.get("fallback").?;
 }
 
 fn getFilepathStem(path: []const u8) FsAccessError![]const u8 {

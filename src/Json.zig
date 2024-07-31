@@ -65,7 +65,7 @@ pub fn loadPlayerData(
             .items = [4]?Player.Item{ null, null, null, Player.Item{
                 .ammount = 5,
                 .type = .slime,
-                .image = textures.get("slime").?.single,
+                .image = Textures.getTexture(textures, "slime").single,
             } },
         },
     };
@@ -194,6 +194,7 @@ fn loadRoom(
                         .avalilable_directions = 1,
                         .frames = bll: {
                             const framebuffer = try allocator.alloc(Textures.AnimationData, 1);
+                            std.debug.print("{s}\n", .{enemy_data.name});
                             framebuffer[0] = Textures.AnimationData.init(enemy_data.name, textures);
                             break :bll framebuffer;
                         },

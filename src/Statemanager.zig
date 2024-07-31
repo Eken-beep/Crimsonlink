@@ -150,22 +150,22 @@ pub fn loadRoom(self: *Self, textures: Textures.TextureMap, player: *Player, roo
     if (room.*.north != null) try world.addItem(.{
         .type = World.WorldPacket.door,
         .side = Level.Direction.North,
-        .texture = Textures.getTexture(textures, "Gun").slice[0],
+        .sprite = Textures.getTexture(textures, "Gun").slice[0],
     });
     if (room.*.south != null) try world.addItem(.{
         .type = World.WorldPacket.door,
         .side = Level.Direction.South,
-        .texture = Textures.getTexture(textures, "Gun").slice[0],
+        .sprite = Textures.getTexture(textures, "Gun").slice[0],
     });
     if (room.*.east != null) try world.addItem(.{
         .type = World.WorldPacket.door,
         .side = Level.Direction.East,
-        .texture = Textures.getTexture(textures, "Gun").slice[0],
+        .sprite = Textures.getTexture(textures, "Gun").slice[0],
     });
     if (room.*.west != null) try world.addItem(.{
         .type = World.WorldPacket.door,
         .side = Level.Direction.West,
-        .texture = Textures.getTexture(textures, "Gun").slice[0],
+        .sprite = Textures.getTexture(textures, "Gun").slice[0],
     });
     if (room.*.enemies) |enemies| if (!room.*.completed) try world.items.appendSlice(enemies);
     return world;

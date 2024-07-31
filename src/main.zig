@@ -29,6 +29,8 @@ const Dt = struct {
 
 const fontpath: [:0]const u8 = "assets/neuropol_x.ttf";
 
+const loadingscreen = @embedFile("datapresets/introscreen.bmp");
+
 const fullscreen = true;
 pub fn main() anyerror!void {
     try SDL.init(.{
@@ -56,6 +58,11 @@ pub fn main() anyerror!void {
     var renderer = try SDL.createRenderer(sdl_window, null, .{ .accelerated = true });
     defer renderer.destroy();
 
+    const loadingscreen_surface = try SDL.loadBmpFromConstMem(loadingscreen[0..]);
+    const loadingscreen_texture = try SDL.createTextureFromSurface(renderer, loadingscreen_surface);
+    try renderer.copy(loadingscreen_texture, null, null);
+    renderer.present();
+
     try SDL.ttf.init();
     defer SDL.ttf.quit();
 
@@ -63,9 +70,9 @@ pub fn main() anyerror!void {
 
     var window = Window{ .width = 1600, .height = 900, .scale = 1, .origin = @splat(0) };
 
-    const font = SDL.ttf.openFont(fontpath, window.fontsize) catch {
+    const font = SDL.ttf.openFont(fontpath, window.fontsize) catch |err| {
         std.log.err("Failed to open font at {s}", .{fontpath});
-        return;
+        return err;
     };
 
     defer font.close();
@@ -92,6 +99,9 @@ pub fn main() anyerror!void {
     var goto_room: Level.Direction = .None;
 
     var mouse_pos: @Vector(2, f32) = @splat(0);
+
+    loadingscreen_texture.destroy();
+    loadingscreen_surface.destroy();
 
     while (running and !(state.state == .exit_game)) {
         try renderer.setColorRGB(0, 0, 0);

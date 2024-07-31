@@ -89,10 +89,9 @@ pub const WorldItemMetadata = union(enum) {
         dt: f32,
         payload: Player.Item,
     },
-    static: SDL.Texture,
+    static,
     door: struct {
         direction: Level.Direction,
-        texture: SDL.Texture,
     },
 };
 
@@ -226,6 +225,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .centerpoint = @splat(5),
                     .render_width = 80,
                     .render_height = 80,
+                    .sprite = item.sprite,
                     .flags = .{
                         .kinetic = false,
                         .transparent = true,
@@ -252,6 +252,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .centerpoint = @splat(0),
                     .render_width = item.sprite.query().width,
                     .render_height = item.sprite.query().heigh,
+                    .sprite = item.sprite,
                     .flags = .{
                         .kinetic = false,
                         .transparent = false,
@@ -259,7 +260,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .texture_offset = @splat(0),
                 },
                 .hp = 1,
-                .meta = WorldItemMetadata{ .static = item.sprite },
+                .meta = WorldItemMetadata.static,
             });
         },
         .door => {
@@ -287,6 +288,7 @@ pub fn addItem(self: *Self, item: anytype) !void {
                         .North, .South => 5,
                         else => 100,
                     },
+                    .sprite = item.sprite,
                     .centerpoint = @splat(0),
                     .flags = .{
                         .kinetic = false,
@@ -297,7 +299,6 @@ pub fn addItem(self: *Self, item: anytype) !void {
                 .hp = 1,
                 .meta = WorldItemMetadata{ .door = .{
                     .direction = item.side,
-                    .texture = item.texture,
                 } },
             });
         },
@@ -331,6 +332,61 @@ pub fn iterate(
             found_enemy = true;
         }
 
+        if (self.items.items[i].c.sprite) |*sprite| {
+            // This draws the shadow/speedy things behind the sprite if it's jumping
+            blk: {
+                switch (item.meta) {
+                    .enemy, .player => {
+                        if (item.meta == .enemy) {
+                            if (item.meta.enemy.state != .jumping) break :blk;
+                        } else if (item.meta == .player) {
+                            if (item.meta.player.state != .jumping) break :blk;
+                        }
+
+                        var j: f32 = 1;
+                        while (j < 4) : ({
+                            j += 1;
+                            try sprite.*.setAlphaMod(@as(u8, @intFromFloat(255 / (5 - j))));
+                        }) {
+                            const shadow_pos: @Vector(2, c_int) = bll: {
+                                const scaled_v = item.c.vel * @Vector(2, f32){ 0.07, 0.07 };
+                                const moved_v = item.c.texture_offset + scaled_v * @Vector(2, f32){ -j, -j };
+                                break :bll @intFromFloat(@as(@Vector(2, f32), @splat(window.scale)) * (moved_v + item.c.pos) + window.origin);
+                            };
+                            try r.copy(sprite.*, .{
+                                .x = shadow_pos[0],
+                                .y = shadow_pos[1],
+                                .width = item.c.render_width,
+                                .height = item.c.render_height,
+                            }, null);
+                        }
+                    },
+                    else => {},
+                }
+            }
+            try sprite.*.setAlphaMod(255);
+
+            try r.copy(
+                sprite.*,
+                .{
+                    .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                    .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                    .width = item.c.render_width,
+                    .height = item.c.render_height,
+                },
+                null,
+            );
+        } else {
+            std.log.warn("Collider {d} of type {any} has no set sprite\n", .{ i, item.meta });
+            try r.setColor(SDL.Color.magenta);
+            try r.fillRect(.{
+                .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
+                .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
+                .width = item.c.render_width,
+                .height = item.c.render_height,
+            });
+        }
+
         if (item.hp < 1) {
             if (item.meta == .enemy) {
                 player.addScore(item.meta.enemy.score_bonus, self.time);
@@ -346,7 +402,7 @@ pub fn iterate(
                 found_player = true;
                 self.items.items[i].meta.player.state = if (item.c.vel[0] != 0 or item.c.vel[1] != 0) .walking else .idle;
                 // check if velocity isn't 0 to check for movement
-                self.items.items[i].meta.player.animation.step(dt);
+                self.items.items[i].meta.player.animation.step(dt, item.meta.player.state);
 
                 // I give up just find the wierd movement and kill it
                 const ks = SDL.getKeyboardState();
@@ -356,78 +412,18 @@ pub fn iterate(
                 if (item.c.vel[0] < 0 and !ks.isPressedInt(getKeyOfAction(.moveleft, keybinds))) self.items.items[i].c.vel[0] = 0;
                 if (item.c.vel[1] < 0 and !ks.isPressedInt(getKeyOfAction(.moveup, keybinds))) self.items.items[i].c.vel[1] = 0;
 
-                try r.copy(
-                    self.items.items[i].meta.player.animation.getFrame(item.c.vel, p.state),
-                    .{
-                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
-                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
-                        .width = item.c.render_width,
-                        .height = item.c.render_height,
-                    },
-                    null,
-                );
-            },
-            .bullet => {
-                try r.setColor(SDL.Color.magenta);
-                try r.fillRect(.{
-                    .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
-                    .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
-                    .width = 10,
-                    .height = 10,
-                });
+                self.items.items[i].c.sprite = self.items.items[i].meta.player.animation.getFrame(item.c.vel, p.state);
             },
             .enemy => |e| {
                 self.items.items[i].c.vel = try stepAi(self, &self.items.items[i].meta, item.c, self.items.items[0].c, dt);
-                try r.copy(
-                    self.items.items[i].meta.enemy.animation.getFrame(item.c.vel, e.state),
-                    .{
-                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
-                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
-                        .width = item.c.render_width,
-                        .height = item.c.render_height,
-                    },
-                    null,
-                );
+                self.items.items[i].c.sprite = self.items.items[i].meta.enemy.animation.getFrame(item.c.vel, e.state);
             },
             .item => |x| {
                 self.items.items[i].meta.item.dt += dt;
                 // Bouncy item
-                const vpos = item.c.pos + @Vector(2, f32){ 0, 10 * @sin(x.dt) };
-                try r.copy(
-                    x.payload.image,
-                    .{
-                        .x = @as(i32, @intFromFloat(window.scale * (vpos[0] + item.c.texture_offset[0]) + window.origin[0])),
-                        .y = @as(i32, @intFromFloat(window.scale * (vpos[1] + item.c.texture_offset[1]) + window.origin[1])),
-                        .width = item.c.render_width,
-                        .height = item.c.render_height,
-                    },
-                    null,
-                );
+                self.items.items[i].c.pos += @Vector(2, f32){ 0, 10 * @cos(x.dt) };
             },
-            .static => |sprite| {
-                try r.copy(
-                    sprite,
-                    .{
-                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
-                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
-                        .width = item.c.render_width,
-                        .height = item.c.render_height,
-                    },
-                    null,
-                );
-            },
-            .door => |door| {
-                try r.copy(
-                    door.texture,
-                    .{
-                        .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),
-                        .y = @as(i32, @intFromFloat(window.scale * (item.c.pos[1] + item.c.texture_offset[1]) + window.origin[1])),
-                        .width = item.c.render_width,
-                        .height = item.c.render_height,
-                    },
-                    null,
-                );
-            },
+            else => {},
         }
 
         if (item.c.weapon_mount) |weapon_mountpoint| {
@@ -516,7 +512,7 @@ fn stepAi(
     dt: f32,
 ) !@Vector(2, f32) {
     const enemy = &meta.*.enemy;
-    enemy.*.animation.step(dt);
+    enemy.*.animation.step(dt, enemy.*.state);
     enemy.*.self_timer += dt;
     enemy.*.melee_timeout += dt;
 
