@@ -30,6 +30,7 @@ halt_gui_rendering: bool,
 gui_arena: std.heap.ArenaAllocator,
 gui_state: Gui.GuiState,
 gui_parent_state: Gui.GuiState,
+dialog: ?Gui.Dialog = null,
 current_room: ?*Level.Room,
 current_level: ?Level.Level,
 allocator: std.mem.Allocator,
@@ -117,6 +118,7 @@ pub fn reloadGui(self: *Self, textures: Textures.TextureMap, player: *Player, r:
 
 pub fn loadRoom(self: *Self, textures: Textures.TextureMap, player: *Player, room: *Level.Room) StateError!World {
     self.current_room = room;
+    self.dialog = Gui.Dialog{ .owner = textures.get("player_0_idle").?.single, .text = "You don't know what you are getting into" };
     // use the dimensions stored in the level
     var world = try World.init(
         room.dimensions,

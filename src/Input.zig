@@ -22,6 +22,7 @@ pub const InputAction = enum {
     shoot_begin,
     shoot_end,
 
+    menu_select,
     pause,
 };
 
@@ -34,6 +35,7 @@ pub const InputState = struct {
     const Self = @This();
     pub fn addEvent(self: *Self, keycode: i10) !void {
         try self.active_actions.append(self.keybinds.get(keycode) orelse return);
+        if (keycode > 0 and keycode < 500) try self.active_actions.append(.menu_select);
     }
 
     pub fn parse(
@@ -62,6 +64,9 @@ pub const InputState = struct {
                 // Shooting
                 .shoot_begin => try player.mainAttack(mouse, world, window),
 
+                .menu_select => if (state.dialog != null) {
+                    state.dialog = state.dialog.?.destroy();
+                },
                 .pause => try state.pauseLevel(world, textures, player, r, font),
                 else => {},
             }

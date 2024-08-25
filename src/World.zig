@@ -315,6 +315,7 @@ pub fn iterate(
     textures: Textures.TextureMap,
     dt: f32,
     keybinds: std.AutoHashMap(i10, Input.InputAction),
+    paused: bool,
 ) !bool {
     self.time += dt;
 
@@ -324,7 +325,7 @@ pub fn iterate(
     // local copy to keep track of if we've won
     var found_enemy: bool = false;
     var found_player: bool = false;
-    defer self.completed = !found_enemy;
+    defer self.completed = !found_enemy and !paused;
 
     loop: while (len > i) : (i += 1) {
         const item = self.items.items[i];
@@ -387,7 +388,7 @@ pub fn iterate(
             });
         }
 
-        if (item.hp < 1) {
+        if (item.hp < 1 and !paused) {
             if (item.meta == .enemy) {
                 player.addScore(item.meta.enemy.score_bonus, self.time);
                 try self.items.items[i].meta.enemy.type.drop(item.c, textures, self);
@@ -397,7 +398,7 @@ pub fn iterate(
             continue :loop;
         }
 
-        switch (item.meta) {
+        if (!paused) switch (item.meta) {
             .player => |p| {
                 found_player = true;
                 self.items.items[i].meta.player.state = if (item.c.vel[0] != 0 or item.c.vel[1] != 0) .walking else .idle;
@@ -424,7 +425,7 @@ pub fn iterate(
                 self.items.items[i].c.pos += @Vector(2, f32){ 0, 10 * @cos(x.dt) };
             },
             else => {},
-        }
+        };
 
         if (item.c.weapon_mount) |weapon_mountpoint| {
             if (item.meta == .player) {
@@ -442,7 +443,7 @@ pub fn iterate(
         }
 
         // Then lastly we apply the velocity of the item
-        if (item.c.flags.kinetic) {
+        if (item.c.flags.kinetic and !paused) {
             const result = Collider.applyVelocity(
                 &self.items.items[i].c,
                 dt,
@@ -491,9 +492,9 @@ pub fn iterate(
         }
     }
     // This is how we die for now
-    std.debug.assert(found_player);
+    if (!paused) std.debug.assert(found_player);
     // For setting the room data for later
-    return !found_enemy;
+    return self.completed;
 }
 
 fn getKeyOfAction(a: Input.InputAction, hm: std.AutoHashMap(i10, Input.InputAction)) i10 {

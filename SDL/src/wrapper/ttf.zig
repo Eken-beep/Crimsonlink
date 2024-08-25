@@ -104,6 +104,17 @@ pub const Font = struct {
         };
     }
 
+    pub fn renderUTF8SolidWrapped(self: Font, text: [:0]const u8, foreground: sdl.Color, wrap_length: u32) error{TtfError}!sdl.Surface {
+        return sdl.Surface{
+            .ptr = sdl.c.TTF_RenderUTF8_Solid_Wrapped(
+                self.ptr,
+                text.ptr,
+                .{ .r = foreground.r, .g = foreground.g, .b = foreground.b, .a = foreground.a },
+                wrap_length,
+            ) orelse return makeError(),
+        };
+    }
+
     pub fn close(self: Font) void {
         sdl.c.TTF_CloseFont(self.ptr);
     }

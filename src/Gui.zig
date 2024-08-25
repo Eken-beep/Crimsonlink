@@ -167,10 +167,51 @@ pub const Text = struct {
     }
 };
 
+pub const Dialog = struct {
+    text: [:0]const u8,
+    texture: ?SDL.Texture = null,
+    owner: SDL.Texture,
+    // Owner here is just the texture to the guy talking
+    pub fn draw(d: *Dialog, r: *SDL.Renderer, font: SDL.ttf.Font, window: Window) error{ SdlError, TtfError }!void {
+        const clamp: u16 = @intFromFloat(window.scale * 1280);
+        const clamp_height: u16 = @intFromFloat(window.scale * 300);
+        const rect = SDL.Rectangle{
+            .x = window.width / 2 - clamp / 2,
+            .y = window.height - clamp_height - 10,
+            .width = clamp,
+            .height = clamp_height,
+        };
+        if (d.texture == null or window.was_resized) {
+            if (window.was_resized and d.texture != null) d.texture.?.destroy();
+            d.texture = try SDL.createTextureFromSurface(r.*, try font.renderUTF8SolidWrapped(
+                d.text,
+                SDL.Color.black,
+                clamp,
+            ));
+        }
+        const textblock_info = try d.texture.?.query();
+        try r.setColor(SDL.Color.cyan);
+        try r.fillRect(rect);
+        try r.copy(d.texture.?, .{ .x = rect.x, .y = rect.y, .width = textblock_info.width, .height = textblock_info.height }, null);
+        try r.copy(d.owner, .{
+            .x = rect.x - clamp_height + 20,
+            .y = rect.y,
+            .width = clamp_height,
+            .height = clamp_height,
+        }, null);
+    }
+
+    pub fn destroy(d: *Dialog) ?Dialog {
+        d.texture.?.destroy();
+        return null;
+    }
+};
+
 pub fn reloadGui(
     r: *SDL.Renderer,
     font: SDL.ttf.Font,
     gui: []GuiSegment,
+    dialog: *?Dialog,
     window: Window,
     mouse: ?@Vector(2, i32),
     state: *Statemanager,
@@ -222,6 +263,9 @@ pub fn reloadGui(
                 }
             }
         }
+    }
+    if (dialog.* != null) {
+        try dialog.*.?.draw(r, font, window);
     }
 }
 

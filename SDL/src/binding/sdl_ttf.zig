@@ -46,3 +46,10 @@ pub extern fn TTF_RenderText_Blended_Wrapped(
     foreground: sdl.SDL_Color,
     wrap_length: u32,
 ) ?*sdl.SDL_Surface;
+
+pub extern fn TTF_RenderUTF8_Solid_Wrapped(
+    font: *TTF_Font,
+    text: [*c]const u8,
+    foreground: sdl.SDL_Color,
+    wrap_length: u32,
+) ?*sdl.SDL_Surface;

@@ -161,6 +161,7 @@ pub fn main() anyerror!void {
                     &renderer,
                     font,
                     state.gui,
+                    &state.dialog,
                     window,
                     mb_left,
                     &state,
@@ -179,7 +180,7 @@ pub fn main() anyerror!void {
                     .height = @as(f32, @floatFromInt(world.dim[1])) * window.scale,
                 }, null);
 
-                if (!world.paused) state.current_room.?.*.completed = try world.iterate(
+                state.current_room.?.*.completed = try world.iterate(
                     &renderer,
                     &window,
                     &player,
@@ -187,6 +188,7 @@ pub fn main() anyerror!void {
                     textures,
                     dt.dt,
                     input_state.keybinds,
+                    world.paused or state.dialog != null,
                 );
                 if (state.current_room.?.*.completed) {
                     state.current_room.?.*.enemies = null;
@@ -206,6 +208,7 @@ pub fn main() anyerror!void {
                     &renderer,
                     font,
                     state.gui,
+                    &state.dialog,
                     window,
                     mb_left,
                     &state,

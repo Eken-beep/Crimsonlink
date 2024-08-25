@@ -14,6 +14,7 @@ fontsize: u16 = 28,
 // Pixles we try to space the gui elements with
 gui_spacing: u16 = 18,
 origin: @Vector(2, f32),
+was_resized: bool = false,
 
 pub fn update(self: *Self, w: u16, h: u16, preferred_width: u16, preferred_height: u16) void {
     self.width = w;
@@ -26,4 +27,5 @@ pub fn update(self: *Self, w: u16, h: u16, preferred_width: u16, preferred_heigh
         @divTrunc(@as(f32, @floatFromInt(w)) - spw, 2),
         @divTrunc(@as(f32, @floatFromInt(h)) - sph, 2),
     };
+    self.was_resized = true;
 }
