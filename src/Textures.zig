@@ -210,7 +210,7 @@ pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringA
 
     var path_arraylist = std.ArrayList([]const u8).init(arena_allocator);
     while (try walker.next()) |f| {
-        if (f.kind == .file and std.mem.eql(u8, ".png", std.fs.path.extension(f.path))) {
+        if (f.kind == .file and std.mem.eql(u8, ".bmp", std.fs.path.extension(f.path))) {
             const buf = try arena_allocator.alloc(u8, f.path.len);
             // Copy into permanent buffer, we clear later just like everything else in this block
             std.mem.copyForwards(u8, buf, f.path);
@@ -240,7 +240,8 @@ pub fn loadTextures(r: *SDL.Renderer, allocator: std.mem.Allocator) !std.StringA
             const file_basename_permanent = allocator.alloc(u8, file_basename.len) catch continue;
             std.mem.copyForwards(u8, file_basename_permanent, file_basename);
 
-            const texture = try SDL.image.loadTexture(r.*, path);
+            const surface = try SDL.loadBmp(path);
+            const texture = try SDL.createTextureFromSurface(r.*, surface);
 
             if (std.mem.eql(u8, file_basename, prev_filename_stem)) {
                 buffer_pointer += 1;

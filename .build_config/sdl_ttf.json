@@ -1,0 +1,7 @@
+{
+    "x86_64-windows-gnu": {
+        "include": "SDL/library/sdl_ttf/include",
+        "libs": "SDL/library/sdl_ttf/lib",
+        "bin": "SDL/library/sdl_ttf/bin"
+    }
+}

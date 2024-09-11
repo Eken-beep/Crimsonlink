@@ -6,7 +6,6 @@ const expectError = std.testing.expectError;
 /// Exports the C interface for SDL
 pub const c = @import("sdl-native");
 
-pub const image = @import("image.zig");
 pub const ttf = @import("ttf.zig");
 pub const gl = @import("gl.zig");
 pub const vulkan = @import("vulkan.zig");

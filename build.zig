@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("sdl2", sdk.getWrapperModule());
 
     const run_cmd = b.addRunArtifact(exe);
+    run_cmd.addPathDir("SDL/bin");
     const run_step = b.step("run", "Run Crimsonlink");
     run_step.dependOn(&run_cmd.step);
 

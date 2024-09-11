@@ -138,7 +138,7 @@ fn loadRoom(
     // TODO
     // change this to load the file from some useful place OR embed the data files that shouldn't change
     const room_file_path: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.json", .{ level_id, room_id });
-    const room_texture_filename: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.png", .{ level_id, room_id });
+    const room_texture_filename: [:0]const u8 = try std.fmt.allocPrintZ(allocator, "data/levels/{d}/room_{d}.bmp", .{ level_id, room_id });
     const room_file_raw = std.fs.cwd().readFileAlloc(
         allocator,
         room_file_path,
@@ -158,7 +158,8 @@ fn loadRoom(
     ret.dimensions = @Vector(2, u16){ width, height };
     // This is technically a memory leak, I think
     // We need to destroy this image after the level is unloaded to fix this
-    ret.texture = try SDL.image.loadTexture(r.*, room_texture_filename);
+    const surface = try SDL.loadBmp(room_texture_filename);
+    ret.texture = try SDL.createTextureFromSurface(r.*, surface);
 
     ret.room_type = try mapRoomtypeToEnum(parsed.value.object.get("roomtype").?.string);
 
