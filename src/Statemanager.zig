@@ -170,6 +170,16 @@ pub fn loadRoom(self: *Self, textures: Textures.TextureMap, player: *Player, roo
         .sprite = Textures.getTexture(textures, "Gun").slice[0],
     });
     if (room.*.enemies) |enemies| if (!room.*.completed) try world.items.appendSlice(enemies);
+    for (room.*.walls) |wall| {
+        try world.addItem(.{
+            .type = World.WorldPacket.static,
+            .x = @as(f32, @floatFromInt(wall.x)),
+            .y = @as(f32, @floatFromInt(wall.y)),
+            .w = @as(?c_int, wall.width),
+            .h = @as(?c_int, wall.height),
+            .sprite = Textures.getTexture(textures, "invisible").single,
+        });
+    }
     return world;
 }
 

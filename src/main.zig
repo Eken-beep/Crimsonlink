@@ -12,7 +12,9 @@ const Json = @import("Json.zig");
 const Level = @import("Level.zig");
 
 // TODO
-// Do something with the player data struct
+// The physics system is completely broken as of now, fix this asap
+// When checking for collision with the room-walls no other collision is taken into consideration meaning that we can just strafe through objects
+// at will if we are colliding with a wall on the current velocity. Probably an easy fix for another day.
 
 const Dt = struct {
     last: u64,

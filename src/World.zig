@@ -246,12 +246,12 @@ pub fn addItem(self: *Self, item: anytype) !void {
                     .pos = @Vector(2, f32){ item.x, item.y },
                     .vel = @splat(0),
                     .hitbox = @Vector(2, f16){
-                        @as(f16, @floatFromInt(item.sprite.query().width)),
-                        @as(f16, @floatFromInt(item.sprite.query().height)),
+                        @as(f16, @floatFromInt(if (item.w != null) item.w.? else (try item.sprite.query()).width)),
+                        @as(f16, @floatFromInt(if (item.h != null) item.h.? else (try item.sprite.query()).height)),
                     },
                     .centerpoint = @splat(0),
-                    .render_width = item.sprite.query().width,
-                    .render_height = item.sprite.query().heigh,
+                    .render_width = (try item.sprite.query()).width,
+                    .render_height = (try item.sprite.query()).height,
                     .sprite = item.sprite,
                     .flags = .{
                         .kinetic = false,
@@ -378,7 +378,7 @@ pub fn iterate(
                 null,
             );
         } else {
-            std.log.warn("Collider {d} of type {any} has no set sprite\n", .{ i, item.meta });
+            //std.log.warn("Collider {d} of type {any} has no set sprite\n", .{ i, item.meta });
             try r.setColor(SDL.Color.magenta);
             try r.fillRect(.{
                 .x = @as(i32, @intFromFloat(window.scale * (item.c.pos[0] + item.c.texture_offset[0]) + window.origin[0])),

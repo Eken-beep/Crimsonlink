@@ -9,6 +9,7 @@ const Textures = @import("Textures.zig");
 const Input = @import("Input.zig");
 const Items = @import("Items.zig");
 const Level = @import("Level.zig");
+const Bitmap = @import("Bitmap.zig");
 
 const DefaultPlayerData = @embedFile("datapresets/StandardPlayer.json");
 const DefaultKeybinds = @embedFile("datapresets/DefaultBindings.json");
@@ -160,6 +161,8 @@ fn loadRoom(
     // We need to destroy this image after the level is unloaded to fix this
     const surface = try SDL.loadBmp(room_texture_filename);
     ret.texture = try SDL.createTextureFromSurface(r.*, surface);
+
+    ret.walls = try Bitmap.getTransparentAreas(allocator, surface);
 
     ret.room_type = try mapRoomtypeToEnum(parsed.value.object.get("roomtype").?.string);
 

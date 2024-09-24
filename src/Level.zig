@@ -38,6 +38,7 @@ pub const Room = struct {
 
     room_type: RoomType,
     dimensions: @Vector(2, u16),
+    walls: []SDL.Rectangle,
     enemies: ?[]World.WorldItem,
     texture: SDL.Texture,
     completed: bool = false,
